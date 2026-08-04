@@ -1,4 +1,5 @@
 import { MIN_EBAY_SHIPPING, calculateMXLABPrices } from './calculator.js';
+import { GOOGLE_MIGRATION } from './seed-data.js';
 import {
   ITEM_STATUSES,
   SELLING_PLATFORMS,
@@ -17,11 +18,14 @@ import {
   safeNumber,
 } from './inventory.js';
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '2.0.0';
 const CALC_STORAGE_KEY = 'mxlab-reseller-calculator-v4';
 const CALC_HISTORY_KEY = 'mxlab-reseller-target-history-v1';
 const HUB_PREFS_KEY = 'mxlab-reseller-hub-prefs-v1';
 const INVENTORY_KEY = 'mxlab-reseller-hub-inventory-v1';
+const SALES_HISTORY_KEY = 'mxlab-reseller-hub-sales-history-v1';
+const BUSINESS_DATA_KEY = 'mxlab-reseller-hub-business-v1';
+const GOOGLE_MIGRATION_KEY = 'mxlab-google-migration-2026-08-04-v2';
 
 const DEFAULT_CALCULATOR = Object.freeze({
   targets: [15],
@@ -34,6 +38,7 @@ const DEFAULT_PREFS = Object.freeze({
   view: 'calculator',
   inventoryStatus: 'all',
   inventorySort: 'newest',
+  historyPlatform: 'all',
 });
 
 const platformMeta = Object.freeze({
@@ -51,6 +56,7 @@ const platformMeta = Object.freeze({
 const viewMeta = Object.freeze({
   calculator: { title: 'Calcolatore', subtitle: 'Prezzi pronti per ogni piattaforma.' },
   inventory: { title: 'Inventario', subtitle: 'Ogni capo sotto controllo.' },
+  history: { title: 'Storico', subtitle: '117 vendite reali, sempre consultabili.' },
   dashboard: { title: 'Dashboard', subtitle: 'Numeri reali, decisioni migliori.' },
   data: { title: 'Dati', subtitle: 'Backup e impostazioni.' },
 });
@@ -87,6 +93,11 @@ const elements = {
   inventoryList: document.getElementById('inventoryList'),
   inventoryEmpty: document.getElementById('inventoryEmpty'),
   inventoryResultCount: document.getElementById('inventoryResultCount'),
+  historySearch: document.getElementById('historySearch'),
+  historyPlatformFilter: document.getElementById('historyPlatformFilter'),
+  historyList: document.getElementById('historyList'),
+  historyEmpty: document.getElementById('historyEmpty'),
+  historyResultCount: document.getElementById('historyResultCount'),
   itemDialog: document.getElementById('itemDialog'),
   itemForm: document.getElementById('itemForm'),
   itemActionsDialog: document.getElementById('itemActionsDialog'),
@@ -104,6 +115,8 @@ let calculator = loadCalculatorState();
 let prefs = loadPrefs();
 let history = loadHistory();
 let inventory = loadInventory();
+let salesHistory = loadSalesHistory();
+let businessData = loadBusinessData();
 
 function parseLocaleNumber(value) {
   const normalized = String(value ?? '').trim().replace(/\s/g, '').replace(',', '.');
@@ -154,6 +167,7 @@ function loadPrefs() {
     view: Object.hasOwn(viewMeta, stored.view) ? stored.view : DEFAULT_PREFS.view,
     inventoryStatus: Object.hasOwn(ITEM_STATUSES, stored.inventoryStatus) || stored.inventoryStatus === 'all' ? stored.inventoryStatus : 'all',
     inventorySort: ['newest', 'oldest', 'target-desc', 'cost-desc', 'slowest'].includes(stored.inventorySort) ? stored.inventorySort : 'newest',
+    historyPlatform: typeof stored.historyPlatform === 'string' ? stored.historyPlatform : 'all',
   };
 }
 
@@ -164,6 +178,29 @@ function loadHistory() {
 
 function loadInventory() {
   return normalizeInventory(loadJson(INVENTORY_KEY, []));
+}
+
+function normalizeSalesHistory(value) {
+  if (!Array.isArray(value)) return [];
+  return value.filter((sale) => sale && typeof sale === 'object' && sale.title && sale.platform).map((sale, index) => ({
+    id: String(sale.id || `sale-${index + 1}`),
+    date: String(sale.date || ''),
+    platform: String(sale.platform || 'Altro'),
+    title: String(sale.title || '').trim(),
+    price: Math.max(0, roundMoney(sale.price)),
+    country: String(sale.country || '').trim(),
+    currency: sale.currency === 'USD' ? 'USD' : 'EUR',
+    source: String(sale.source || '').trim(),
+  }));
+}
+
+function loadSalesHistory() {
+  return normalizeSalesHistory(loadJson(SALES_HISTORY_KEY, []));
+}
+
+function loadBusinessData() {
+  const stored = loadJson(BUSINESS_DATA_KEY, null);
+  return stored && typeof stored === 'object' ? stored : { lots: [], suppliers: [], expenses: [], checklist: [] };
 }
 
 function saveCalculator() {
@@ -186,6 +223,14 @@ function saveInventory() {
   try { localStorage.setItem(INVENTORY_KEY, JSON.stringify(inventory)); } catch {
     showToast('Spazio locale insufficiente');
   }
+}
+
+function saveSalesHistory() {
+  try { localStorage.setItem(SALES_HISTORY_KEY, JSON.stringify(salesHistory)); } catch { showToast('Spazio locale insufficiente'); }
+}
+
+function saveBusinessData() {
+  try { localStorage.setItem(BUSINESS_DATA_KEY, JSON.stringify(businessData)); } catch { showToast('Spazio locale insufficiente'); }
 }
 
 function formatTarget(value) { return formatters.input.format(value); }
@@ -277,6 +322,7 @@ function navigate(view, options = {}) {
   elements.pageSubtitle.textContent = viewMeta[view].subtitle;
   elements.calculatorSticky.hidden = view !== 'calculator' || getCalculatorModels().length === 0;
   if (view === 'inventory') renderInventory();
+  if (view === 'history') renderSalesHistory();
   if (view === 'dashboard') renderDashboard();
   if (view === 'data') renderSettings();
   if (!options.keepScroll) window.scrollTo({ top: 0, behavior: 'auto' });
@@ -562,9 +608,10 @@ function inventoryCardMarkup(item) {
   const agingClass = item.status !== 'sold' && age >= 90 ? 'critical' : item.status !== 'sold' && age >= 60 ? 'warning' : item.status !== 'sold' && age >= 30 ? 'aging' : '';
   const platformChips = item.platforms.slice(0, 3).map((platform) => `<span>${escapeHtml(platform)}</span>`).join('');
   const extraPlatforms = item.platforms.length > 3 ? `<span>+${item.platforms.length - 3}</span>` : '';
+  const provisional = item.costProvisional ? '<em class="provisional-badge">PROVVISORIO</em>' : '';
   const soldMeta = item.status === 'sold' && item.sale
-    ? `<div class="inventory-financial sold-financial"><span>Profitto <strong>${formatMoney(profit)}</strong></span><span>${multiplier ? `${formatTarget(multiplier)}×` : '—'}</span></div>`
-    : `<div class="inventory-financial"><span>Costo <strong>${formatMoney(item.cost)}</strong></span><span>Target <strong>${formatMoney(item.target)}</strong></span><span>Vinted <strong>${euroX90(prices.vinted)}</strong></span></div>`;
+    ? `<div class="inventory-financial sold-financial"><span>Profitto ${provisional}<strong>${formatMoney(profit)}</strong></span><span>${multiplier ? `${formatTarget(multiplier)}×` : '—'}</span></div>`
+    : `<div class="inventory-financial"><span>Costo ${provisional}<strong>${formatMoney(item.cost)}</strong></span><span>${item.targetInferred ? 'Target stimato' : 'Target'} <strong>${item.target > 0 ? formatMoney(item.target) : 'Da inserire'}</strong></span><span>Vinted <strong>${item.target > 0 ? euroX90(prices.vinted) : '—'}</strong></span></div>`;
 
   return `
     <article class="inventory-card ${item.status === 'sold' ? 'sold-card' : ''}" data-item-id="${item.id}">
@@ -582,8 +629,8 @@ function inventoryCardMarkup(item) {
         </div>
         ${soldMeta}
         <div class="inventory-card-bottom">
-          <div class="platform-chips">${platformChips}${extraPlatforms || (!item.platforms.length ? '<span>Nessuna piattaforma</span>' : '')}</div>
-          <span class="age-label ${agingClass}">${item.status === 'sold' ? `Venduto in ${age}g` : `${age}g in stock`}</span>
+          <div class="platform-chips">${item.lotCode ? `<span>${escapeHtml(item.lotCode)}</span>` : ''}${platformChips}${extraPlatforms || (!item.platforms.length ? '<span>Nessuna piattaforma</span>' : '')}</div>
+          <span class="age-label ${agingClass}">${item.status === 'sold' && item.sale?.date ? `Venduto in ${age}g` : item.status === 'sold' ? 'Data vendita assente' : `${age}g in stock`}</span>
         </div>
       </button>
       <button class="inventory-more" type="button" data-item-action="more" aria-label="Azioni per ${escapeHtml(item.code)}">•••</button>
@@ -727,6 +774,144 @@ function syncSaleCurrencyAndPrice(resetPrice = false) {
   if (resetPrice) document.getElementById('salePrice').value = formatTarget(recommendedSalePrice(item, platform));
 }
 
+
+// SALES HISTORY + GOOGLE SHEETS MIGRATION
+function getSalesMetrics(sales = salesHistory) {
+  const revenue = roundMoney(sales.reduce((sum, sale) => sum + safeNumber(sale.price), 0));
+  const byPlatformMap = new Map();
+  const byCountryMap = new Map();
+  sales.forEach((sale) => {
+    const platform = sale.platform || 'Altro';
+    const current = byPlatformMap.get(platform) || { platform, sales: 0, revenue: 0 };
+    current.sales += 1;
+    current.revenue = roundMoney(current.revenue + sale.price);
+    byPlatformMap.set(platform, current);
+    if (sale.country) byCountryMap.set(sale.country, (byCountryMap.get(sale.country) || 0) + 1);
+  });
+  const byPlatform = [...byPlatformMap.values()].sort((a, b) => b.sales - a.sales || b.revenue - a.revenue);
+  const byCountry = [...byCountryMap.entries()].map(([country, count]) => ({ country, count })).sort((a, b) => b.count - a.count);
+  const prices = sales.map((sale) => sale.price).filter(Number.isFinite);
+  return {
+    count: sales.length,
+    revenue,
+    average: sales.length ? roundMoney(revenue / sales.length) : 0,
+    highest: prices.length ? Math.max(...prices) : 0,
+    lowest: prices.length ? Math.min(...prices) : 0,
+    byPlatform,
+    byCountry,
+  };
+}
+
+function salesHistoryToCsv(sales = salesHistory) {
+  const escape = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+  const rows = [['Data', 'Piattaforma', 'Articolo', 'Prezzo vendita', 'Paese'], ...sales.map((sale) => [sale.date, sale.platform, sale.title, sale.price, sale.country])];
+  return rows.map((row) => row.map(escape).join(';')).join('\n');
+}
+
+function populateHistoryPlatformFilter() {
+  const platforms = [...new Set(salesHistory.map((sale) => sale.platform))].sort((a, b) => a.localeCompare(b, 'it'));
+  elements.historyPlatformFilter.innerHTML = '<option value="all">Tutte le piattaforme</option>' + platforms.map((platform) => `<option value="${escapeHtml(platform)}">${escapeHtml(platform)}</option>`).join('');
+  if (platforms.includes(prefs.historyPlatform)) elements.historyPlatformFilter.value = prefs.historyPlatform;
+  else { prefs.historyPlatform = 'all'; elements.historyPlatformFilter.value = 'all'; savePrefs(); }
+}
+
+function getFilteredSalesHistory() {
+  const query = elements.historySearch.value.trim().toLowerCase();
+  return salesHistory
+    .filter((sale) => prefs.historyPlatform === 'all' || sale.platform === prefs.historyPlatform)
+    .filter((sale) => !query || [sale.title, sale.platform, sale.country, sale.date].some((value) => String(value || '').toLowerCase().includes(query)))
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)) || b.price - a.price);
+}
+
+function renderSalesHistory() {
+  populateHistoryPlatformFilter();
+  const metrics = getSalesMetrics(salesHistory);
+  document.getElementById('historySalesKpi').textContent = metrics.count;
+  document.getElementById('historyRevenueKpi').textContent = formatMoney(metrics.revenue);
+  document.getElementById('historyAverageKpi').textContent = formatMoney(metrics.average);
+  document.getElementById('historyPlatformChips').innerHTML = metrics.byPlatform.map((item) => `
+    <button class="history-platform-chip" type="button" data-history-platform="${escapeHtml(item.platform)}">
+      <strong>${escapeHtml(item.platform)}</strong><span>${item.sales} vendite</span><b>${formatMoney(item.revenue)}</b>
+    </button>`).join('');
+  document.querySelectorAll('[data-history-platform]').forEach((button) => button.addEventListener('click', () => {
+    prefs.historyPlatform = button.dataset.historyPlatform;
+    savePrefs();
+    renderSalesHistory();
+  }));
+
+  const filtered = getFilteredSalesHistory();
+  elements.historyResultCount.textContent = filtered.length === 1 ? '1 vendita' : `${filtered.length} vendite`;
+  elements.historyEmpty.hidden = filtered.length > 0;
+  elements.historyList.hidden = filtered.length === 0;
+  elements.historyList.innerHTML = filtered.map((sale) => `
+    <article class="history-sale-card">
+      <span class="history-sale-avatar">${escapeHtml((sale.platform || '?').slice(0, 2).toUpperCase())}</span>
+      <div class="history-sale-main"><h3>${escapeHtml(sale.title)}</h3><p>${escapeHtml(sale.platform)} · ${escapeHtml(sale.country || 'Paese non indicato')}</p></div>
+      <div class="history-sale-price"><strong>${formatMoney(sale.price)}</strong><span>${formatDate(sale.date)}</span></div>
+    </article>`).join('');
+}
+
+function mergeGoogleMigration({ silent = false } = {}) {
+  const importedItems = normalizeInventory(GOOGLE_MIGRATION.inventory || []);
+  const itemIndex = new Map(inventory.map((item, index) => [String(item.code).toLowerCase(), index]));
+  let addedItems = 0;
+  importedItems.forEach((item) => {
+    const key = String(item.code).toLowerCase();
+    if (itemIndex.has(key)) {
+      const index = itemIndex.get(key);
+      const current = inventory[index];
+      inventory[index] = createInventoryItem({ ...item, ...current, id: current.id, code: current.code, createdAt: current.createdAt }, inventory);
+    } else {
+      inventory.push(item);
+      itemIndex.set(key, inventory.length - 1);
+      addedItems += 1;
+    }
+  });
+
+  const saleIndex = new Map(salesHistory.map((sale, index) => [sale.id, index]));
+  let addedSales = 0;
+  normalizeSalesHistory(GOOGLE_MIGRATION.salesHistory || []).forEach((sale) => {
+    if (saleIndex.has(sale.id)) salesHistory[saleIndex.get(sale.id)] = sale;
+    else { salesHistory.push(sale); saleIndex.set(sale.id, salesHistory.length - 1); addedSales += 1; }
+  });
+  businessData = typeof structuredClone === 'function' ? structuredClone(GOOGLE_MIGRATION.business || {}) : JSON.parse(JSON.stringify(GOOGLE_MIGRATION.business || {}));
+  saveInventory();
+  saveSalesHistory();
+  saveBusinessData();
+  try { localStorage.setItem(GOOGLE_MIGRATION_KEY, GOOGLE_MIGRATION.generatedAt || new Date().toISOString()); } catch { /* no-op */ }
+  renderInventory();
+  renderSalesHistory();
+  renderDashboard();
+  renderBusinessData();
+  if (!silent) showToast(`Importati ${addedItems} articoli e ${addedSales} vendite`);
+}
+
+function ensureGoogleMigration() {
+  const migrated = localStorage.getItem(GOOGLE_MIGRATION_KEY);
+  if (!migrated) mergeGoogleMigration({ silent: true });
+}
+
+function renderBusinessData() {
+  const lots = Array.isArray(businessData.lots) ? businessData.lots : [];
+  const suppliers = Array.isArray(businessData.suppliers) ? businessData.suppliers : [];
+  const expenses = Array.isArray(businessData.expenses) ? businessData.expenses : [];
+  const checklist = Array.isArray(businessData.checklist) ? businessData.checklist : [];
+  const openHigh = checklist.filter((task) => String(task.status).toLowerCase() !== 'fatto' && String(task.priority).toLowerCase() === 'alta').length;
+  const expenseTotal = roundMoney(expenses.reduce((sum, expense) => sum + safeNumber(expense.amount), 0));
+  const netLots = roundMoney(lots.reduce((sum, lot) => sum + safeNumber(lot.netCost || lot.grossCost), 0));
+  document.getElementById('businessSummaryGrid').innerHTML = `
+    <article><span>Costo netto lotti</span><strong>${formatMoney(netLots)}</strong></article>
+    <article><span>Spese generali</span><strong>${formatMoney(expenseTotal)}</strong></article>
+    <article><span>Task alta priorità</span><strong>${openHigh}</strong></article>`;
+  const details = [];
+  lots.forEach((lot) => details.push(`<article class="business-detail-card"><header><h4>Lotto ${escapeHtml(lot.code)}</h4><span>${escapeHtml(lot.status || '')}</span></header><p>${lot.quantity} articoli · costo netto ${formatMoney(lot.netCost || lot.grossCost)} · rimborso ${formatMoney(lot.refund)} · media provvisoria ${formatMoney(lot.provisionalUnitCost)}</p></article>`));
+  suppliers.forEach((supplier) => details.push(`<article class="business-detail-card"><header><h4>${escapeHtml(supplier.name)}</h4><span>${escapeHtml(supplier.status || '')}</span></header><p>${escapeHtml(supplier.order)} · ${supplier.receivedItems} ricevuti · ${supplier.soldItems} venduti · ${formatMoney(supplier.revenue)} ricavi registrati</p></article>`));
+  expenses.forEach((expense) => details.push(`<article class="business-detail-card"><header><h4>${escapeHtml(expense.category)}</h4><span>${formatMoney(expense.amount)}</span></header><p>${escapeHtml(expense.description)}</p></article>`));
+  document.getElementById('businessDetailList').innerHTML = details.join('') || '<p class="dashboard-empty">Nessun dato attività importato.</p>';
+  const status = document.getElementById('googleImportStatus');
+  if (status) status.textContent = `${inventory.length} articoli operativi, ${salesHistory.length} vendite storiche, ${lots.length} lotti e ${suppliers.length} fornitori.`;
+}
+
 // DASHBOARD
 function pipelineMarkup(metrics) {
   const statuses = ['prep', 'photo', 'publish', 'live', 'sold'];
@@ -744,6 +929,12 @@ function pipelineMarkup(metrics) {
 
 function renderDashboard() {
   const metrics = getInventoryMetrics(inventory);
+  const historic = getSalesMetrics(salesHistory);
+  const historicSummary = document.getElementById('historicDashboardSummary');
+  if (historicSummary) historicSummary.innerHTML = `
+    <article><span>Vendite</span><strong>${historic.count}</strong></article>
+    <article><span>Incasso</span><strong>${formatMoney(historic.revenue)}</strong></article>
+    <article><span>Prezzo medio</span><strong>${formatMoney(historic.average)}</strong></article>`;
   document.getElementById('kpiProfit').textContent = formatMoney(metrics.realizedProfit);
   document.getElementById('kpiProfitSub').textContent = metrics.sold === 1 ? '1 vendita' : `${metrics.sold} vendite`;
   document.getElementById('kpiInvested').textContent = formatMoney(metrics.invested);
@@ -785,11 +976,13 @@ function renderDashboard() {
     const item = inventory.find((entry) => entry.id === button.dataset.dashboardItem);
     if (item) openItemActions(item);
   }));
+  document.querySelectorAll('[data-open-history]').forEach((button) => button.addEventListener('click', () => navigate('history')));
 }
 
 // DATA
 function renderSettings() {
   applyTheme();
+  renderBusinessData();
 }
 
 function downloadFile(filename, content, type) {
@@ -811,12 +1004,21 @@ function exportCsv() {
   showToast('CSV esportato');
 }
 
+function exportSalesHistoryCsv() {
+  if (!salesHistory.length) return showToast('Storico vendite vuoto');
+  const csv = `﻿${salesHistoryToCsv(salesHistory)}`;
+  downloadFile(`mxlab-storico-vendite-${localDateISO()}.csv`, csv, 'text/csv;charset=utf-8');
+  showToast('Storico CSV esportato');
+}
+
 function exportBackup() {
   const backup = {
     app: 'MXLAB Reseller Hub',
     version: APP_VERSION,
     exportedAt: new Date().toISOString(),
     inventory,
+    salesHistory,
+    businessData,
     calculator,
     history,
     prefs,
@@ -831,6 +1033,8 @@ async function importBackup(file) {
     const backup = JSON.parse(await file.text());
     if (!Array.isArray(backup.inventory)) throw new Error('Backup non valido');
     inventory = normalizeInventory(backup.inventory);
+    salesHistory = normalizeSalesHistory(backup.salesHistory || []);
+    businessData = backup.businessData && typeof backup.businessData === 'object' ? backup.businessData : { lots: [], suppliers: [], expenses: [], checklist: [] };
     if (backup.calculator) {
       calculator.targets = Array.isArray(backup.calculator.targets) ? backup.calculator.targets.map(normalizeTarget).filter((value) => value != null) : calculator.targets;
       calculator.ebayShipping = Math.max(MIN_EBAY_SHIPPING, normalizeTarget(backup.calculator.ebayShipping) ?? calculator.ebayShipping);
@@ -838,8 +1042,8 @@ async function importBackup(file) {
     }
     history = Array.isArray(backup.history) ? backup.history.map(normalizeTarget).filter((value) => value != null).slice(0, 8) : history;
     if (backup.prefs?.theme && ['dark', 'light'].includes(backup.prefs.theme)) prefs.theme = backup.prefs.theme;
-    saveInventory(); saveCalculator(); saveHistory(); savePrefs();
-    renderTargetInputs(); renderCalculatorResults(); renderHistory(); renderInventory(); renderDashboard(); applyTheme();
+    saveInventory(); saveSalesHistory(); saveBusinessData(); saveCalculator(); saveHistory(); savePrefs();
+    renderTargetInputs(); renderCalculatorResults(); renderHistory(); renderInventory(); renderSalesHistory(); renderDashboard(); renderBusinessData(); applyTheme();
     showToast('Backup ripristinato');
   } catch {
     showToast('File di backup non valido');
@@ -913,6 +1117,9 @@ function initializeEvents() {
     savePrefs(); renderInventory();
   });
   elements.inventorySort.addEventListener('change', () => { prefs.inventorySort = elements.inventorySort.value; savePrefs(); renderInventory(); });
+  elements.historySearch.addEventListener('input', renderSalesHistory);
+  elements.historyPlatformFilter.addEventListener('change', () => { prefs.historyPlatform = elements.historyPlatformFilter.value; savePrefs(); renderSalesHistory(); });
+  document.getElementById('exportHistoryCsvButton').addEventListener('click', exportSalesHistoryCsv);
 
   document.getElementById('itemTarget').addEventListener('input', updateItemTargetPreview);
   document.getElementById('openFullCalculatorFromItem').addEventListener('click', () => {
@@ -981,15 +1188,16 @@ function initializeEvents() {
 
   document.getElementById('exportCsvButton').addEventListener('click', exportCsv);
   document.getElementById('exportBackupButton').addEventListener('click', exportBackup);
+  document.getElementById('importGoogleDataButton').addEventListener('click', () => mergeGoogleMigration());
   document.getElementById('importBackupButton').addEventListener('click', () => elements.backupFileInput.click());
   elements.backupFileInput.addEventListener('change', () => importBackup(elements.backupFileInput.files?.[0]));
   document.getElementById('installHelpButton').addEventListener('click', () => openDialog(elements.installDialog));
   document.getElementById('deleteAllDataButton').addEventListener('click', () => {
     if (!window.confirm('Eliminare inventario, cronologia e impostazioni MXLAB?')) return;
     if (!window.confirm('Confermi? Non sarà possibile recuperare i dati senza un backup.')) return;
-    inventory = []; history = []; calculator = { ...DEFAULT_CALCULATOR, targets: [15] }; prefs = { ...DEFAULT_PREFS };
-    localStorage.removeItem(INVENTORY_KEY); localStorage.removeItem(CALC_HISTORY_KEY); localStorage.removeItem(CALC_STORAGE_KEY); localStorage.removeItem(HUB_PREFS_KEY);
-    saveCalculator(); savePrefs(); renderTargetInputs(); renderHistory(); renderCalculatorResults(); renderInventory(); renderDashboard(); applyTheme(); navigate('calculator'); showToast('Dati eliminati');
+    inventory = []; salesHistory = []; businessData = { lots: [], suppliers: [], expenses: [], checklist: [] }; history = []; calculator = { ...DEFAULT_CALCULATOR, targets: [15] }; prefs = { ...DEFAULT_PREFS };
+    [INVENTORY_KEY, SALES_HISTORY_KEY, BUSINESS_DATA_KEY, GOOGLE_MIGRATION_KEY, CALC_HISTORY_KEY, CALC_STORAGE_KEY, HUB_PREFS_KEY].forEach((key) => localStorage.removeItem(key));
+    saveCalculator(); savePrefs(); renderTargetInputs(); renderHistory(); renderCalculatorResults(); renderInventory(); renderSalesHistory(); renderDashboard(); renderBusinessData(); applyTheme(); navigate('calculator'); showToast('Dati eliminati');
   });
 }
 
@@ -1000,7 +1208,7 @@ function registerServiceWorker() {
   }
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('./sw.js?v=5');
+      const registration = await navigator.serviceWorker.register('./sw.js?v=6');
       elements.statusPill.textContent = navigator.onLine ? 'Offline pronto' : 'Modalità offline';
       registration.update();
     } catch {
@@ -1012,6 +1220,7 @@ function registerServiceWorker() {
 }
 
 function initialize() {
+  ensureGoogleMigration();
   applyTheme();
   populateSalePlatforms();
   renderTargetInputs();
@@ -1019,7 +1228,9 @@ function initialize() {
   elements.ebayShipping.value = formatters.x90.format(calculator.ebayShipping);
   renderCalculatorResults();
   renderInventory();
+  renderSalesHistory();
   renderDashboard();
+  renderBusinessData();
   initializeEvents();
   navigate(prefs.view, { keepScroll: true });
   registerServiceWorker();

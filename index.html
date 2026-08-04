@@ -8,12 +8,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="MXLAB Hub" />
-    <meta name="description" content="Calcolatore prezzi, inventario e dashboard operativa MXLAB." />
+    <meta name="description" content="Calcolatore prezzi, inventario, storico vendite e dashboard operativa MXLAB." />
     <title>MXLAB Reseller Hub</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=5" />
-    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png?v=5" />
-    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png?v=5" />
-    <link rel="stylesheet" href="./styles.css?v=5" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png?v=6" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png?v=6" />
+    <link rel="stylesheet" href="./styles.css?v=6" />
   </head>
   <body>
     <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -22,7 +22,7 @@
     <div class="app-shell">
       <header class="topbar">
         <button class="brand" id="brandButton" type="button" aria-label="Apri dashboard">
-          <img class="brand-icon" src="./icon-192.png?v=5" alt="" width="48" height="48" />
+          <img class="brand-icon" src="./icon-192.png?v=6" alt="" width="48" height="48" />
           <div>
             <p class="eyebrow">MXLAB</p>
             <h1 id="pageTitle">Calcolatore</h1>
@@ -177,6 +177,42 @@
           <div id="inventoryList" class="inventory-list"></div>
         </section>
 
+        <section class="view" id="historyView" data-view="history" aria-labelledby="history-title" hidden>
+          <section class="history-hero">
+            <div>
+              <p class="section-kicker">STORICO REALE</p>
+              <h2 id="history-title">Vendite multipiattaforma</h2>
+              <p>Le vendite precedenti restano separate dall’inventario operativo, così non falsano costi e profitti.</p>
+            </div>
+          </section>
+
+          <section class="history-kpi-grid" aria-label="Riepilogo vendite storiche">
+            <article><span>Vendite</span><strong id="historySalesKpi">0</strong></article>
+            <article><span>Incasso</span><strong id="historyRevenueKpi">0 €</strong></article>
+            <article><span>Media</span><strong id="historyAverageKpi">0 €</strong></article>
+          </section>
+
+          <section class="history-controls">
+            <div class="search-wrap">
+              <span aria-hidden="true">⌕</span>
+              <input id="historySearch" type="search" autocomplete="off" placeholder="Cerca articolo, paese o piattaforma" aria-label="Cerca nello storico vendite" />
+            </div>
+            <label class="history-select-wrap">
+              <span class="sr-only">Filtra piattaforma</span>
+              <select id="historyPlatformFilter"><option value="all">Tutte le piattaforme</option></select>
+            </label>
+          </section>
+
+          <div class="history-platforms" id="historyPlatformChips" aria-label="Riepilogo per piattaforma"></div>
+          <div class="history-result-row"><p id="historyResultCount">Nessuna vendita</p><button class="text-button" id="exportHistoryCsvButton" type="button">Esporta CSV</button></div>
+          <div class="history-list" id="historyList"></div>
+          <div class="empty-panel" id="historyEmpty" hidden>
+            <div class="empty-icon" aria-hidden="true">€</div>
+            <h2>Nessuna vendita trovata</h2>
+            <p>Modifica ricerca o filtro della piattaforma.</p>
+          </div>
+        </section>
+
         <section class="view" id="dashboardView" data-view="dashboard" aria-labelledby="dashboard-title" hidden>
           <section class="hero-dashboard">
             <div>
@@ -185,6 +221,14 @@
               <p id="dashboardPeriodLabel">Dati complessivi</p>
             </div>
             <button class="secondary-button compact" id="dashboardAddButton" type="button">＋ Articolo</button>
+          </section>
+
+          <section class="dashboard-card historic-dashboard-card">
+            <div class="card-heading small-heading">
+              <div><p class="section-kicker">STORICO 2026</p><h2>Vendite precedenti</h2></div>
+              <button class="text-button" type="button" data-open-history>Apri storico</button>
+            </div>
+            <div class="historic-summary" id="historicDashboardSummary"></div>
           </section>
 
           <section class="kpi-grid">
@@ -260,6 +304,22 @@
             <p>Backup, esportazioni e preferenze restano sotto il tuo controllo.</p>
           </section>
 
+          <section class="settings-group google-import-group">
+            <h3>Google Sheets</h3>
+            <div class="google-import-card">
+              <div class="google-import-icon" aria-hidden="true">G</div>
+              <div><strong>Dati del gestionale disponibili</strong><small id="googleImportStatus">16 articoli, 117 vendite storiche, lotti, fornitori e spese.</small></div>
+            </div>
+            <button class="primary-button full-width" id="importGoogleDataButton" type="button">Importa o aggiorna i dati Google</button>
+            <p class="field-hint">L’importazione unisce i dati tramite codici univoci e non duplica gli articoli già presenti.</p>
+          </section>
+
+          <section class="settings-group">
+            <h3>Attività importata</h3>
+            <div class="business-summary-grid" id="businessSummaryGrid"></div>
+            <div class="business-detail-list" id="businessDetailList"></div>
+          </section>
+
           <section class="settings-group">
             <h3>Dati</h3>
             <button class="settings-row" id="exportCsvButton" type="button">
@@ -305,7 +365,7 @@
 
           <footer class="app-footer">
             <p>Formule ufficiali MXLAB · Dati salvati solo sul dispositivo</p>
-            <span>Hub v1.0</span>
+            <span>Hub v2.0</span>
           </footer>
         </section>
       </main>
@@ -317,6 +377,9 @@
       </button>
       <button type="button" data-nav="inventory">
         <span class="nav-icon" aria-hidden="true">▧</span><span>Inventario</span>
+      </button>
+      <button type="button" data-nav="history">
+        <span class="nav-icon" aria-hidden="true">↺</span><span>Storico</span>
       </button>
       <button type="button" data-nav="dashboard">
         <span class="nav-icon" aria-hidden="true">▥</span><span>Dashboard</span>
@@ -425,7 +488,7 @@
             <label class="field"><span>Prezzo venduto *</span><div class="input-wrap form-money"><span class="prefix" id="salePricePrefix">€</span><input id="salePrice" required inputmode="decimal" /></div></label>
             <label class="field"><span>Incasso netto *</span><div class="input-wrap form-money"><span class="prefix">€</span><input id="saleNet" required inputmode="decimal" /></div></label>
           </div>
-          <p class="field-hint">Il prezzo venduto usa la valuta della piattaforma. L’incasso netto va inserito in euro ed è quanto ti rimane realmente dopo eventuali commissioni.</p>
+          <p class="field-hint">L’incasso netto è quanto ti rimane realmente dopo eventuali commissioni. Su Vinted normalmente coincide con il prezzo venduto.</p>
           <label class="field"><span>Data vendita</span><input id="saleDate" type="date" /></label>
           <div class="sale-preview">
             <div><span>Profitto</span><strong id="saleProfitPreview">—</strong></div>
@@ -460,6 +523,6 @@
       </div>
     </template>
 
-    <script type="module" src="./app.js?v=5"></script>
+    <script type="module" src="./app.js?v=6"></script>
   </body>
 </html>

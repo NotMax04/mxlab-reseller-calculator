@@ -143,7 +143,7 @@ h2 { font-size: 1.18rem; letter-spacing: -0.025em; }
 .remove-target-button:active { background: rgba(255, 123, 132, 0.13); color: var(--danger); }
 .target-input-row:only-child .remove-target-button { display: none; }
 
-.adjustment-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 11px; }
+.adjustment-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 11px; }
 .adjust-button { min-height: 40px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); font-weight: 800; color: var(--muted); }
 .adjust-button:active { transform: scale(0.97); background: var(--accent-soft); color: var(--accent-strong); }
 
@@ -512,4 +512,63 @@ body.dialog-open { overflow: hidden; }
 }
 @media (display-mode: standalone) {
   .app-shell { padding-top: max(16px, env(safe-area-inset-top)); }
+}
+
+
+/* SALES HISTORY + GOOGLE MIGRATION */
+.history-hero, .history-controls, .history-kpi-grid, .history-platforms, .history-result-row, .history-list { margin-bottom: 14px; }
+.history-hero { padding: 18px; border: 1px solid var(--border); border-radius: 22px; background: linear-gradient(145deg, var(--surface), var(--surface-2)); }
+.history-hero h2 { margin: 3px 0 7px; font-size: 1.28rem; }
+.history-hero p:last-child { margin: 0; color: var(--muted); font-size: 0.78rem; line-height: 1.5; }
+.history-kpi-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
+.history-kpi-grid article { padding: 13px 10px; border: 1px solid var(--border); border-radius: 17px; background: var(--surface); min-width: 0; }
+.history-kpi-grid span { display: block; color: var(--muted); font-size: 0.66rem; }
+.history-kpi-grid strong { display: block; margin-top: 5px; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history-controls { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; }
+.history-select-wrap select { min-height: 48px; max-width: 155px; border: 1px solid var(--border); border-radius: 16px; padding: 0 30px 0 12px; background: var(--surface); color: var(--text); font-size: 0.75rem; }
+.history-platforms { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 3px; scrollbar-width: none; }
+.history-platforms::-webkit-scrollbar { display: none; }
+.history-platform-chip { flex: 0 0 auto; display: grid; grid-template-columns: auto auto; gap: 4px 8px; align-items: center; padding: 9px 11px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+.history-platform-chip strong { font-size: 0.74rem; }
+.history-platform-chip span { color: var(--muted); font-size: 0.64rem; }
+.history-platform-chip b { grid-column: 2; grid-row: 1 / span 2; color: var(--accent-strong); font-size: 0.78rem; }
+.history-result-row { display: flex; justify-content: space-between; align-items: center; padding: 0 3px; }
+.history-result-row p { margin: 0; color: var(--muted); font-size: 0.72rem; }
+.history-list { display: grid; gap: 9px; }
+.history-sale-card { display: grid; grid-template-columns: 43px minmax(0,1fr) auto; gap: 11px; align-items: center; padding: 12px; border: 1px solid var(--border); border-radius: 17px; background: var(--surface); }
+.history-sale-avatar { width: 43px; height: 43px; display: grid; place-items: center; border-radius: 13px; background: var(--accent-soft); color: var(--accent-strong); font-weight: 900; font-size: 0.72rem; }
+.history-sale-main { min-width: 0; }
+.history-sale-main h3 { margin: 0 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.82rem; }
+.history-sale-main p { margin: 0; color: var(--muted); font-size: 0.66rem; }
+.history-sale-price { text-align: right; }
+.history-sale-price strong { display: block; font-size: 0.9rem; }
+.history-sale-price span { display: block; margin-top: 3px; color: var(--muted); font-size: 0.62rem; }
+.historic-summary { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+.historic-summary article { padding: 12px; border-radius: 15px; background: var(--surface-2); min-width: 0; }
+.historic-summary span { display: block; color: var(--muted); font-size: 0.64rem; }
+.historic-summary strong { display: block; margin-top: 5px; font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.google-import-card { display: grid; grid-template-columns: 44px 1fr; gap: 11px; align-items: center; padding: 13px; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 17px; background: var(--surface); }
+.google-import-icon { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 13px; background: linear-gradient(135deg,#4285f4,#34a853); color: white; font-weight: 950; }
+.google-import-card strong, .google-import-card small { display: block; }
+.google-import-card strong { font-size: 0.8rem; }
+.google-import-card small { margin-top: 4px; color: var(--muted); line-height: 1.4; font-size: 0.65rem; }
+.full-width { width: 100%; }
+.business-summary-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin-bottom: 10px; }
+.business-summary-grid article { padding: 12px 9px; border: 1px solid var(--border); border-radius: 15px; background: var(--surface); min-width: 0; }
+.business-summary-grid span { display:block; color:var(--muted); font-size:.62rem; }
+.business-summary-grid strong { display:block; margin-top:5px; font-size:.86rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.business-detail-list { display:grid; gap:8px; }
+.business-detail-card { padding: 13px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+.business-detail-card header { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+.business-detail-card h4 { margin:0; font-size:.8rem; }
+.business-detail-card header span { color:var(--accent-strong); font-size:.68rem; font-weight:850; }
+.business-detail-card p { margin:7px 0 0; color:var(--muted); font-size:.67rem; line-height:1.45; }
+.provisional-badge { display:inline-flex; margin-left:5px; padding:2px 6px; border-radius:999px; background:var(--warning-soft, rgba(245,158,11,.14)); color:var(--warning, #f59e0b); font-size:.55rem; font-weight:900; vertical-align:middle; }
+
+@media (max-width: 420px) {
+  .bottom-nav button { font-size: 0.6rem; min-height: 54px; }
+  .nav-icon { font-size: 1.08rem; }
+  .history-controls { grid-template-columns: 1fr; }
+  .history-select-wrap select { width: 100%; max-width: none; }
+  .history-kpi-grid strong, .historic-summary strong { font-size: .84rem; }
 }

@@ -1,27 +1,20 @@
-# MXLAB Reseller Hub
+# MXLAB Reseller Hub v2
 
-Web app mobile-first e installabile su iPhone per gestire l'attività di reselling MX LAB.
+App web installabile su iPhone per il progetto MXLAB.
 
 ## Moduli
 
-- Calcolatore prezzi multipiattaforma con formule ufficiali MXLAB.
-- Inventario con codice progressivo, workflow, ricerca e filtri.
-- Registrazione delle vendite con profitto e moltiplicatore reali.
-- Dashboard con capitale investito, valore target, pipeline e articoli fermi.
-- Esportazione CSV e backup/ripristino JSON.
-- Salvataggio locale e funzionamento offline.
+- Calcolatore prezzi multipiattaforma con formule ufficiali MXLAB
+- Inventario operativo con workflow e registrazione vendite
+- Storico di 117 vendite multipiattaforma importate da Google Sheets
+- Dashboard con inventario corrente e storico separati
+- Dati di lotti, fornitori, spese e checklist
+- Esportazione CSV e backup JSON
+- Funzionamento offline tramite PWA
 
-## Pubblicazione su GitHub Pages
+## Importazione Google
 
-Caricare tutti i file nella radice del repository e usare:
-
-- Source: Deploy from a branch
-- Branch: main
-- Folder: / (root)
-
-## Aggiornamento dalla precedente versione
-
-I dati del calcolatore già salvati vengono mantenuti. L'inventario utilizza una nuova area di archiviazione locale.
+I dati del 4 agosto 2026 sono inclusi in `seed-data.js`. Al primo avvio su un dispositivo senza dati, l’importazione viene eseguita automaticamente. In seguito può essere ripetuta dalla sezione **Dati > Google Sheets** senza creare duplicati.
 
 ## Test
 
@@ -29,6 +22,6 @@ I dati del calcolatore già salvati vengono mantenuti. L'inventario utilizza una
 npm test
 ```
 
-## Privacy
+## Pubblicazione
 
-I dati dell'inventario restano nel browser del dispositivo. È consigliato scaricare periodicamente un backup JSON.
+Caricare tutti i file nella radice del repository GitHub Pages.
