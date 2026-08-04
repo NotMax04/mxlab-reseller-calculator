@@ -10,7 +10,10 @@ import {
   getItemProfit,
   getPlatformPerformance,
   getSlowMovers,
+  inferBrandFromTitle,
+  inferCategoryFromTitle,
   inventoryToCsv,
+  isPlaceholderBrand,
   localDateISO,
   nextStatus,
   normalizeInventory,
@@ -18,7 +21,7 @@ import {
   safeNumber,
 } from './inventory.js';
 
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.1.0';
 const CALC_STORAGE_KEY = 'mxlab-reseller-calculator-v4';
 const CALC_HISTORY_KEY = 'mxlab-reseller-target-history-v1';
 const HUB_PREFS_KEY = 'mxlab-reseller-hub-prefs-v1';
@@ -26,6 +29,7 @@ const INVENTORY_KEY = 'mxlab-reseller-hub-inventory-v1';
 const SALES_HISTORY_KEY = 'mxlab-reseller-hub-sales-history-v1';
 const BUSINESS_DATA_KEY = 'mxlab-reseller-hub-business-v1';
 const GOOGLE_MIGRATION_KEY = 'mxlab-google-migration-2026-08-04-v2';
+const DATA_REPAIR_KEY = 'mxlab-data-quality-repair-2026-08-04-v3';
 
 const DEFAULT_CALCULATOR = Object.freeze({
   targets: [15],
@@ -530,11 +534,16 @@ function renderPlatformToggles(selected = []) {
 function resetItemForm() {
   elements.itemForm.reset();
   document.getElementById('itemId').value = '';
-  document.getElementById('itemCategory').value = 'Polo';
+  document.getElementById('itemBrand').dataset.auto = 'true';
+  document.getElementById('itemCategory').dataset.auto = 'true';
+  document.getElementById('itemCategory').value = 'Altro';
   document.getElementById('itemCondition').value = 'Ottime';
   document.getElementById('itemPurchaseDate').value = localDateISO();
+  document.getElementById('itemReceivedDate').value = localDateISO();
   document.getElementById('itemStatus').value = 'prep';
   document.getElementById('itemDialogTitle').textContent = 'Nuovo articolo';
+  const identityHint = document.getElementById('identitySuggestionHint');
+  if (identityHint) identityHint.textContent = 'Scrivi prima il nome: marca e categoria vengono suggerite automaticamente quando riconoscibili.';
   renderPlatformToggles([]);
   updateItemTargetPreview();
 }
@@ -546,14 +555,17 @@ function openItemDialog(item = null, presetTarget = null) {
     document.getElementById('itemDialogTitle').textContent = `Modifica ${item.code}`;
     document.getElementById('itemId').value = item.id;
     document.getElementById('itemBrand').value = item.brand;
+    document.getElementById('itemBrand').dataset.auto = 'false';
     document.getElementById('itemTitle').value = item.title;
     document.getElementById('itemCategory').value = item.category;
+    document.getElementById('itemCategory').dataset.auto = 'false';
     document.getElementById('itemSize').value = item.size;
     document.getElementById('itemCondition').value = item.condition;
     document.getElementById('itemCost').value = formatTarget(item.cost);
     document.getElementById('itemTarget').value = formatTarget(item.target);
     document.getElementById('itemSource').value = item.source;
     document.getElementById('itemPurchaseDate').value = item.purchaseDate;
+    document.getElementById('itemReceivedDate').value = item.receivedDate || '';
     document.getElementById('itemStatus').value = item.status;
     document.getElementById('itemNotes').value = item.notes;
     renderPlatformToggles(item.platforms);
@@ -562,7 +574,22 @@ function openItemDialog(item = null, presetTarget = null) {
   }
   updateItemTargetPreview();
   openDialog(elements.itemDialog);
-  window.setTimeout(() => document.getElementById('itemBrand').focus(), 100);
+  window.setTimeout(() => document.getElementById('itemTitle').focus(), 100);
+}
+
+function suggestItemIdentity() {
+  const title = document.getElementById('itemTitle').value;
+  const brandInput = document.getElementById('itemBrand');
+  const categoryInput = document.getElementById('itemCategory');
+  const brand = inferBrandFromTitle(title);
+  const category = inferCategoryFromTitle(title);
+  if (brand && (isPlaceholderBrand(brandInput.value) || brandInput.dataset.auto === 'true')) { brandInput.value = brand; brandInput.dataset.auto = 'true'; }
+  if (category && (!categoryInput.value || categoryInput.value === 'Altro' || categoryInput.dataset.auto === 'true')) { categoryInput.value = category; categoryInput.dataset.auto = 'true'; }
+  const hint = document.getElementById('identitySuggestionHint');
+  if (hint) {
+    const suggestions = [brand, category].filter(Boolean);
+    hint.textContent = suggestions.length ? `Rilevato: ${suggestions.join(' · ')}` : 'Scrivi prima il nome: marca e categoria vengono suggerite automaticamente quando riconoscibili.';
+  }
 }
 
 function updateItemTargetPreview() {
@@ -592,6 +619,7 @@ function collectItemForm() {
     target: document.getElementById('itemTarget').value,
     source: document.getElementById('itemSource').value,
     purchaseDate: document.getElementById('itemPurchaseDate').value,
+    receivedDate: document.getElementById('itemReceivedDate').value,
     status: document.getElementById('itemStatus').value,
     platforms: selectedPlatforms,
     notes: document.getElementById('itemNotes').value,
@@ -879,16 +907,45 @@ function mergeGoogleMigration({ silent = false } = {}) {
   saveSalesHistory();
   saveBusinessData();
   try { localStorage.setItem(GOOGLE_MIGRATION_KEY, GOOGLE_MIGRATION.generatedAt || new Date().toISOString()); } catch { /* no-op */ }
+  const repairedItems = applyDataQualityRepairs({ force: true, silent: true });
   renderInventory();
   renderSalesHistory();
   renderDashboard();
   renderBusinessData();
-  if (!silent) showToast(`Importati ${addedItems} articoli e ${addedSales} vendite`);
+  if (!silent) showToast(`Importati ${addedItems} articoli, ${addedSales} vendite${repairedItems ? ` · ${repairedItems} schede corrette` : ''}`);
 }
 
 function ensureGoogleMigration() {
   const migrated = localStorage.getItem(GOOGLE_MIGRATION_KEY);
   if (!migrated) mergeGoogleMigration({ silent: true });
+}
+
+function applyDataQualityRepairs({ force = false, silent = true } = {}) {
+  if (!force && localStorage.getItem(DATA_REPAIR_KEY)) return 0;
+  const seeds = new Map((GOOGLE_MIGRATION.inventory || []).map((item) => [String(item.code).toLowerCase(), item]));
+  let repaired = 0;
+  inventory = inventory.map((current) => {
+    const seed = seeds.get(String(current.code).toLowerCase());
+    const importedItem = String(current.id || '').startsWith('google-') || current.lotCode === 'MOD-0001';
+    if (!seed || !importedItem) return current;
+
+    const patch = {};
+    if (isPlaceholderBrand(current.brand) && !isPlaceholderBrand(seed.brand)) patch.brand = seed.brand;
+    if ((!current.category || current.category === 'Altro') && seed.category && seed.category !== 'Altro') patch.category = seed.category;
+    if ((!current.condition || current.condition === 'Ottime') && seed.condition && seed.condition !== 'Ottime') patch.condition = seed.condition;
+    if (current.purchaseDate === '2026-07-20' && seed.purchaseDate) patch.purchaseDate = seed.purchaseDate;
+    if (!current.receivedDate && seed.receivedDate) patch.receivedDate = seed.receivedDate;
+    if ((current.migrationRevision || 0) < (seed.migrationRevision || 0)) patch.migrationRevision = seed.migrationRevision;
+
+    if (!Object.keys(patch).length) return current;
+    repaired += 1;
+    return { ...current, ...patch, updatedAt: current.updatedAt || new Date().toISOString() };
+  });
+
+  if (repaired) saveInventory();
+  try { localStorage.setItem(DATA_REPAIR_KEY, new Date().toISOString()); } catch { /* no-op */ }
+  if (!silent && repaired) showToast(`${repaired} schede inventario corrette`);
+  return repaired;
 }
 
 function renderBusinessData() {
@@ -1043,6 +1100,7 @@ async function importBackup(file) {
     history = Array.isArray(backup.history) ? backup.history.map(normalizeTarget).filter((value) => value != null).slice(0, 8) : history;
     if (backup.prefs?.theme && ['dark', 'light'].includes(backup.prefs.theme)) prefs.theme = backup.prefs.theme;
     saveInventory(); saveSalesHistory(); saveBusinessData(); saveCalculator(); saveHistory(); savePrefs();
+    applyDataQualityRepairs({ force: true, silent: true });
     renderTargetInputs(); renderCalculatorResults(); renderHistory(); renderInventory(); renderSalesHistory(); renderDashboard(); renderBusinessData(); applyTheme();
     showToast('Backup ripristinato');
   } catch {
@@ -1121,6 +1179,9 @@ function initializeEvents() {
   elements.historyPlatformFilter.addEventListener('change', () => { prefs.historyPlatform = elements.historyPlatformFilter.value; savePrefs(); renderSalesHistory(); });
   document.getElementById('exportHistoryCsvButton').addEventListener('click', exportSalesHistoryCsv);
 
+  document.getElementById('itemTitle').addEventListener('input', suggestItemIdentity);
+  document.getElementById('itemBrand').addEventListener('input', () => { document.getElementById('itemBrand').dataset.auto = 'false'; });
+  document.getElementById('itemCategory').addEventListener('change', () => { document.getElementById('itemCategory').dataset.auto = 'false'; });
   document.getElementById('itemTarget').addEventListener('input', updateItemTargetPreview);
   document.getElementById('openFullCalculatorFromItem').addEventListener('click', () => {
     const target = normalizeTarget(document.getElementById('itemTarget').value);
@@ -1196,7 +1257,7 @@ function initializeEvents() {
     if (!window.confirm('Eliminare inventario, cronologia e impostazioni MXLAB?')) return;
     if (!window.confirm('Confermi? Non sarà possibile recuperare i dati senza un backup.')) return;
     inventory = []; salesHistory = []; businessData = { lots: [], suppliers: [], expenses: [], checklist: [] }; history = []; calculator = { ...DEFAULT_CALCULATOR, targets: [15] }; prefs = { ...DEFAULT_PREFS };
-    [INVENTORY_KEY, SALES_HISTORY_KEY, BUSINESS_DATA_KEY, GOOGLE_MIGRATION_KEY, CALC_HISTORY_KEY, CALC_STORAGE_KEY, HUB_PREFS_KEY].forEach((key) => localStorage.removeItem(key));
+    [INVENTORY_KEY, SALES_HISTORY_KEY, BUSINESS_DATA_KEY, GOOGLE_MIGRATION_KEY, DATA_REPAIR_KEY, CALC_HISTORY_KEY, CALC_STORAGE_KEY, HUB_PREFS_KEY].forEach((key) => localStorage.removeItem(key));
     saveCalculator(); savePrefs(); renderTargetInputs(); renderHistory(); renderCalculatorResults(); renderInventory(); renderSalesHistory(); renderDashboard(); renderBusinessData(); applyTheme(); navigate('calculator'); showToast('Dati eliminati');
   });
 }
@@ -1208,7 +1269,7 @@ function registerServiceWorker() {
   }
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('./sw.js?v=6');
+      const registration = await navigator.serviceWorker.register('./sw.js?v=7');
       elements.statusPill.textContent = navigator.onLine ? 'Offline pronto' : 'Modalità offline';
       registration.update();
     } catch {
@@ -1221,6 +1282,7 @@ function registerServiceWorker() {
 
 function initialize() {
   ensureGoogleMigration();
+  applyDataQualityRepairs({ silent: true });
   applyTheme();
   populateSalePlatforms();
   renderTargetInputs();

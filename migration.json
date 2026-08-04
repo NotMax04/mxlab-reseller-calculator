@@ -1,4 +1,4 @@
-export const GOOGLE_MIGRATION = Object.freeze({
+{
   "version": 3,
   "generatedAt": "2026-08-04T19:20:00+02:00",
   "sourceSheets": [
@@ -2118,4 +2118,4 @@ export const GOOGLE_MIGRATION = Object.freeze({
       }
     ]
   }
-});
+}

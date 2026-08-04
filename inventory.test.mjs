@@ -8,6 +8,8 @@ import {
   getItemMultiplier,
   getItemProfit,
   getSlowMovers,
+  inferBrandFromTitle,
+  inferCategoryFromTitle,
   nextStatus,
 } from './inventory.js';
 
@@ -53,4 +55,26 @@ test('avanza correttamente nel workflow', () => {
 
 test('calcola giorni inclusi tra due date', () => {
   assert.equal(daysBetween('2026-08-01', '2026-08-04'), 3);
+});
+
+
+test('riconosce marca e categoria dal nome articolo', () => {
+  assert.equal(inferBrandFromTitle('Bermuda cargo Carhartt'), 'Carhartt');
+  assert.equal(inferBrandFromTitle('T-shirt bianca Tommy Jeans'), 'Tommy Jeans');
+  assert.equal(inferCategoryFromTitle('Bermuda cargo Carhartt'), 'Shorts');
+  assert.equal(inferCategoryFromTitle('Gilet smanicato Tommy beige'), 'Gilet');
+});
+
+test('compila automaticamente identità quando i campi sono vuoti', () => {
+  const item = createInventoryItem({ title: 'Camicia Tommy Hilfiger con macchia', category: 'Altro' });
+  assert.equal(item.brand, 'Tommy Hilfiger');
+  assert.equal(item.category, 'Camicia');
+});
+
+test('calcola i giorni in stock dalla ricezione quando presente', () => {
+  const item = createInventoryItem({
+    brand: 'Carhartt', title: 'Bermuda', purchaseDate: '2026-07-05', receivedDate: '2026-07-20', status: 'live',
+  });
+  assert.equal(getSlowMovers([item], 15, '2026-08-04').length, 1);
+  assert.equal(getSlowMovers([item], 16, '2026-08-04').length, 0);
 });

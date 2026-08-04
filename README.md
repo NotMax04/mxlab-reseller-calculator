@@ -1,4 +1,4 @@
-# MXLAB Reseller Hub v2
+# MXLAB Reseller Hub v2.1
 
 App web installabile su iPhone per il progetto MXLAB.
 
@@ -25,3 +25,11 @@ npm test
 ## Pubblicazione
 
 Caricare tutti i file nella radice del repository GitHub Pages.
+
+## Correzioni dati v2.1
+
+- Compilazione automatica di marca e categoria dal nome dell’articolo quando riconoscibili.
+- Correzione delle marche mancanti negli articoli Modori importati.
+- Distinzione tra data di acquisto del lotto e data di ricezione.
+- Condizioni non presenti nel foglio indicate come `Non indicato`, senza inventare informazioni.
+- Riparazione automatica dei dati già salvati sul dispositivo, senza cancellare inventario o storico.

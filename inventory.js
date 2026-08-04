@@ -18,6 +18,55 @@ export const SELLING_PLATFORMS = Object.freeze([
   'Grailed',
 ]);
 
+
+const BRAND_INFERENCE_RULES = Object.freeze([
+  [/\btommy\s+jeans\b/i, 'Tommy Jeans'],
+  [/\btommy\s+hilfiger\b/i, 'Tommy Hilfiger'],
+  [/\bpolo\s+(?:by\s+)?ralph\s+lauren\b/i, 'Polo Ralph Lauren'],
+  [/\bu\.?s\.?\s+polo\s+assn\.?\b/i, 'U.S. Polo Assn.'],
+  [/\breebok\s+classic\b/i, 'Reebok Classic'],
+  [/\bg\.?a\.?p\.?\s+company\b/i, 'G.A.P. Company'],
+  [/\bralph\s+lauren\b/i, 'Ralph Lauren'],
+  [/\bcarhartt\b/i, 'Carhartt'],
+  [/\baustralian\b/i, 'Australian'],
+  [/\badidas\b/i, 'Adidas'],
+  [/\blacoste\b/i, 'Lacoste'],
+  [/\blevi(?:’|'|)s\b/i, 'Levi’s'],
+  [/\btommy\b/i, 'Tommy Hilfiger'],
+]);
+
+const CATEGORY_INFERENCE_RULES = Object.freeze([
+  [/\bt[- ]?shirt\b/i, 'T-shirt'],
+  [/\bpolo\b/i, 'Polo'],
+  [/\bcamicia\b/i, 'Camicia'],
+  [/\bgilet\b|\bsmanicato\b/i, 'Gilet'],
+  [/\bbermuda\b|\bpantaloncini\b|\bshorts?\b/i, 'Shorts'],
+  [/\bjeans?\b/i, 'Jeans'],
+  [/\bpantaloni?\b/i, 'Pantaloni'],
+  [/\bfelpa\b/i, 'Felpa'],
+  [/\bmaglione\b|\bcardigan\b/i, 'Maglione'],
+  [/\bgiacca\b|\bgiubbotto\b|\bblazer\b|\bbomber\b/i, 'Giacca'],
+  [/\bscarpe\b|\bsneakers?\b|\bstivali?\b|\bsandali?\b|\bd[ée]collet[ée]\b/i, 'Scarpe'],
+  [/\bborsa\b|\bsciarpa\b|\bfoulard\b|\bcintura\b|\bportafoglio\b/i, 'Accessorio'],
+]);
+
+export function isPlaceholderBrand(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return !normalized || normalized === 'senza marca' || normalized === 'non indicata' || normalized === 'non indicato';
+}
+
+export function inferBrandFromTitle(title) {
+  const value = String(title || '').trim();
+  if (!value) return '';
+  return BRAND_INFERENCE_RULES.find(([pattern]) => pattern.test(value))?.[1] || '';
+}
+
+export function inferCategoryFromTitle(title) {
+  const value = String(title || '').trim();
+  if (!value) return '';
+  return CATEGORY_INFERENCE_RULES.find(([pattern]) => pattern.test(value))?.[1] || '';
+}
+
 export function safeNumber(value, fallback = 0) {
   const normalized = String(value ?? '').trim().replace(/\s/g, '').replace(',', '.');
   const numeric = Number(normalized);
@@ -60,15 +109,16 @@ export function createInventoryItem(input, items = []) {
   return {
     id,
     code: input.code || createItemCode(items),
-    brand: String(input.brand || '').trim(),
+    brand: String(input.brand || inferBrandFromTitle(input.title) || '').trim(),
     title: String(input.title || '').trim(),
-    category: String(input.category || 'Altro').trim(),
+    category: String((!input.category || input.category === 'Altro') ? (inferCategoryFromTitle(input.title) || 'Altro') : input.category).trim(),
     size: String(input.size || '').trim(),
     condition: String(input.condition || 'Ottime').trim(),
     cost,
     target,
     source: String(input.source || '').trim(),
     purchaseDate: input.purchaseDate || localDateISO(),
+    receivedDate: input.receivedDate || '',
     status,
     platforms: Array.isArray(input.platforms) ? [...new Set(input.platforms.map(String))] : [],
     notes: String(input.notes || '').trim(),
@@ -82,6 +132,7 @@ export function createInventoryItem(input, items = []) {
     nextAction: String(input.nextAction || '').trim(),
     targetInferred: Boolean(input.targetInferred),
     targetSource: String(input.targetSource || '').trim(),
+    migrationRevision: Math.max(0, Math.trunc(safeNumber(input.migrationRevision, 0))),
     sale,
     createdAt: input.createdAt || now,
     updatedAt: now,
@@ -111,7 +162,7 @@ export function daysBetween(startDate, endDate = localDateISO()) {
 
 export function daysInStock(item, today = localDateISO()) {
   const end = item.status === 'sold' && item.sale?.date ? item.sale.date : today;
-  return daysBetween(item.purchaseDate, end);
+  return daysBetween(item.receivedDate || item.purchaseDate, end);
 }
 
 export function getItemProfit(item) {
@@ -185,14 +236,14 @@ export function nextStatus(status) {
 export function inventoryToCsv(items) {
   const headers = [
     'Codice', 'Marca', 'Descrizione', 'Categoria', 'Taglia', 'Condizioni', 'Costo acquisto', 'Prezzo target',
-    'Fornitore', 'Data acquisto', 'Stato', 'Piattaforme', 'Data vendita', 'Piattaforma vendita',
+    'Fornitore', 'Data acquisto', 'Data ricezione', 'Stato', 'Piattaforme', 'Data vendita', 'Piattaforma vendita',
     'Prezzo vendita', 'Valuta vendita', 'Incasso netto', 'Profitto', 'Moltiplicatore', 'Giorni in stock', 'Note',
   ];
 
   const escape = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
   const rows = items.map((item) => [
     item.code, item.brand, item.title, item.category, item.size, item.condition,
-    item.cost, item.target, item.source, item.purchaseDate, ITEM_STATUSES[item.status]?.label || item.status,
+    item.cost, item.target, item.source, item.purchaseDate, item.receivedDate || '', ITEM_STATUSES[item.status]?.label || item.status,
     item.platforms.join(' | '), item.sale?.date || '', item.sale?.platform || '', item.sale?.price ?? '', item.sale?.currency || '', item.sale?.net ?? '',
     getItemProfit(item) ?? '', getItemMultiplier(item) ?? '', daysInStock(item), item.notes,
   ]);
