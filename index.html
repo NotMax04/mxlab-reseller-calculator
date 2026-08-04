@@ -3,17 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0a0b0f" />
+    <meta name="theme-color" content="#090b10" />
     <meta name="color-scheme" content="dark light" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Prezzi MXLAB" />
-    <meta name="description" content="Calcolatore ufficiale dei prezzi multipiattaforma MXLAB." />
-    <title>Prezzi MXLAB</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=4" />
-    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png?v=4" />
-    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png?v=4" />
-    <link rel="stylesheet" href="./styles.css?v=4" />
+    <meta name="apple-mobile-web-app-title" content="MXLAB Hub" />
+    <meta name="description" content="Calcolatore prezzi, inventario e dashboard operativa MXLAB." />
+    <title>MXLAB Reseller Hub</title>
+    <link rel="manifest" href="./manifest.webmanifest?v=5" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png?v=5" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png?v=5" />
+    <link rel="stylesheet" href="./styles.css?v=5" />
   </head>
   <body>
     <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -21,136 +21,445 @@
 
     <div class="app-shell">
       <header class="topbar">
-        <div class="brand">
-          <img class="brand-icon" src="./icon-192.png?v=4" alt="" width="52" height="52" />
+        <button class="brand" id="brandButton" type="button" aria-label="Apri dashboard">
+          <img class="brand-icon" src="./icon-192.png?v=5" alt="" width="48" height="48" />
           <div>
             <p class="eyebrow">MXLAB</p>
-            <h1>Calcolatore prezzi</h1>
-            <p class="subtitle">Prezzi pronti per ogni piattaforma.</p>
+            <h1 id="pageTitle">Calcolatore</h1>
+            <p class="subtitle" id="pageSubtitle">Prezzi pronti per ogni piattaforma.</p>
           </div>
-        </div>
-        <button class="icon-button" id="themeButton" type="button" aria-label="Cambia tema" title="Cambia tema">
-          <span id="themeIcon" aria-hidden="true">◐</span>
         </button>
+        <div class="topbar-actions">
+          <button class="icon-button" id="quickAddButton" type="button" aria-label="Aggiungi articolo" title="Aggiungi articolo">
+            <span aria-hidden="true">＋</span>
+          </button>
+          <button class="icon-button" id="themeButton" type="button" aria-label="Cambia tema" title="Cambia tema">
+            <span id="themeIcon" aria-hidden="true">◐</span>
+          </button>
+        </div>
       </header>
 
       <main>
-        <section class="calculator-card" aria-labelledby="target-title">
-          <div class="card-heading">
-            <div>
-              <p class="section-kicker">CALCOLO</p>
-              <h2 id="target-title">Prezzo target</h2>
-            </div>
-            <button class="ghost-button" id="resetButton" type="button">Nuovo</button>
-          </div>
-
-          <div id="targetInputs" class="target-inputs" aria-live="polite"></div>
-
-          <div class="adjustment-row" aria-label="Modifica rapida del target selezionato">
-            <button class="adjust-button" type="button" data-adjust="-5">−5</button>
-            <button class="adjust-button" type="button" data-adjust="-1">−1</button>
-            <button class="adjust-button" type="button" data-adjust="1">+1</button>
-            <button class="adjust-button" type="button" data-adjust="5">+5</button>
-          </div>
-
-          <div class="preset-wrap">
-            <span class="micro-label">TARGET RAPIDI</span>
-            <div class="preset-row" id="presetRow">
-              <button type="button" data-preset="10">10 €</button>
-              <button type="button" data-preset="15">15 €</button>
-              <button type="button" data-preset="20">20 €</button>
-              <button type="button" data-preset="25">25 €</button>
-              <button type="button" data-preset="30">30 €</button>
-            </div>
-          </div>
-
-          <div class="calculator-actions">
-            <button class="secondary-button" id="addTargetButton" type="button">
-              <span aria-hidden="true">＋</span> Confronta un altro target
-            </button>
-            <button class="settings-button" id="settingsButton" type="button" aria-expanded="false" aria-controls="advancedSettings">
-              Opzioni <span class="chevron" aria-hidden="true">⌄</span>
-            </button>
-          </div>
-
-          <div class="advanced-settings" id="advancedSettings" hidden>
-            <label class="field">
-              <span>Spedizione eBay</span>
-              <small>Minimo consentito: 5,35 €</small>
-              <div class="input-wrap compact-input">
-                <span class="prefix">€</span>
-                <input id="ebayShipping" inputmode="decimal" autocomplete="off" value="5,35" aria-label="Spedizione eBay" />
+        <section class="view active" id="calculatorView" data-view="calculator" aria-labelledby="calculator-title">
+          <section class="calculator-card">
+            <div class="card-heading">
+              <div>
+                <p class="section-kicker">CALCOLO</p>
+                <h2 id="calculator-title">Prezzo target</h2>
               </div>
+              <button class="ghost-button" id="resetCalculatorButton" type="button">Azzera</button>
+            </div>
+
+            <div id="targetInputs" class="target-inputs" aria-live="polite"></div>
+
+            <div class="adjustment-row" aria-label="Modifica rapida del target selezionato">
+              <button class="adjust-button" type="button" data-adjust="-5">−5</button>
+              <button class="adjust-button" type="button" data-adjust="-1">−1</button>
+              <button class="adjust-button" type="button" data-adjust="1">+1</button>
+              <button class="adjust-button" type="button" data-adjust="5">+5</button>
+            </div>
+
+            <div class="preset-wrap">
+              <span class="micro-label">TARGET RAPIDI</span>
+              <div class="preset-row" id="presetRow">
+                <button type="button" data-preset="10">10 €</button>
+                <button type="button" data-preset="15">15 €</button>
+                <button type="button" data-preset="20">20 €</button>
+                <button type="button" data-preset="25">25 €</button>
+                <button type="button" data-preset="30">30 €</button>
+              </div>
+            </div>
+
+            <div class="calculator-actions">
+              <button class="secondary-button" id="addTargetButton" type="button">
+                <span aria-hidden="true">＋</span> Confronta target
+              </button>
+              <button class="settings-button" id="calculatorSettingsButton" type="button" aria-expanded="false" aria-controls="calculatorAdvancedSettings">
+                Opzioni <span class="chevron" aria-hidden="true">⌄</span>
+              </button>
+            </div>
+
+            <div class="advanced-settings" id="calculatorAdvancedSettings" hidden>
+              <label class="field">
+                <span>Spedizione eBay</span>
+                <small>Minimo consentito: 5,35 €</small>
+                <div class="input-wrap compact-input">
+                  <span class="prefix">€</span>
+                  <input id="ebayShipping" inputmode="decimal" autocomplete="off" value="5,35" aria-label="Spedizione eBay" />
+                </div>
+              </label>
+            </div>
+          </section>
+
+          <section class="recent-section" id="recentSection" hidden aria-labelledby="recent-title">
+            <div class="inline-heading">
+              <p id="recent-title" class="micro-label">RECENTI</p>
+              <button class="text-button" id="clearHistoryButton" type="button">Cancella</button>
+            </div>
+            <div class="recent-row" id="recentRow"></div>
+          </section>
+
+          <section class="results-section" aria-labelledby="results-title">
+            <div class="results-topline">
+              <div>
+                <p class="section-kicker">RISULTATI</p>
+                <h2 id="results-title">Prezzi calcolati</h2>
+              </div>
+              <span class="status-pill" id="statusPill">Offline pronto</span>
+            </div>
+
+            <div class="segment-control" id="resultFilter" role="tablist" aria-label="Filtra risultati">
+              <button type="button" class="active" data-filter="all" role="tab" aria-selected="true">Tutto</button>
+              <button type="button" data-filter="prices" role="tab" aria-selected="false">Prezzi</button>
+              <button type="button" data-filter="minimums" role="tab" aria-selected="false">Minimi</button>
+              <button type="button" data-filter="offers" role="tab" aria-selected="false">Offerte</button>
+            </div>
+
+            <p id="calculatorEmptyState" class="empty-state" hidden>Inserisci almeno un prezzo target valido.</p>
+            <div id="resultsContainer" class="results-container"></div>
+          </section>
+        </section>
+
+        <section class="view" id="inventoryView" data-view="inventory" aria-labelledby="inventory-title" hidden>
+          <section class="inventory-toolbar">
+            <div class="search-wrap">
+              <span aria-hidden="true">⌕</span>
+              <input id="inventorySearch" type="search" autocomplete="off" placeholder="Cerca marca, capo o codice" aria-label="Cerca inventario" />
+            </div>
+            <button class="primary-compact" id="addInventoryButton" type="button">＋ Articolo</button>
+          </section>
+
+          <div class="filter-scroller" id="inventoryStatusFilters" aria-label="Filtra inventario">
+            <button type="button" class="active" data-status="all">Tutti <span id="countAll">0</span></button>
+            <button type="button" data-status="prep">Da preparare <span id="countPrep">0</span></button>
+            <button type="button" data-status="photo">Da fotografare <span id="countPhoto">0</span></button>
+            <button type="button" data-status="publish">Da pubblicare <span id="countPublish">0</span></button>
+            <button type="button" data-status="live">Pubblicati <span id="countLive">0</span></button>
+            <button type="button" data-status="sold">Venduti <span id="countSold">0</span></button>
+          </div>
+
+          <section class="inventory-summary-strip" aria-label="Riepilogo inventario">
+            <article>
+              <span>Disponibili</span>
+              <strong id="inventoryAvailableKpi">0</strong>
+            </article>
+            <article>
+              <span>Investiti</span>
+              <strong id="inventoryInvestedKpi">0 €</strong>
+            </article>
+            <article>
+              <span>Target</span>
+              <strong id="inventoryTargetKpi">0 €</strong>
+            </article>
+          </section>
+
+          <div class="sort-row">
+            <p id="inventoryResultCount">Nessun articolo</p>
+            <label>
+              <span class="sr-only">Ordina inventario</span>
+              <select id="inventorySort">
+                <option value="newest">Più recenti</option>
+                <option value="oldest">Più vecchi</option>
+                <option value="target-desc">Target più alto</option>
+                <option value="cost-desc">Costo più alto</option>
+                <option value="slowest">Fermi da più tempo</option>
+              </select>
             </label>
           </div>
-        </section>
 
-        <section class="recent-section" id="recentSection" hidden aria-labelledby="recent-title">
-          <div class="inline-heading">
-            <p id="recent-title" class="micro-label">RECENTI</p>
-            <button class="text-button" id="clearHistoryButton" type="button">Cancella</button>
+          <div id="inventoryEmpty" class="empty-panel">
+            <div class="empty-icon" aria-hidden="true">▧</div>
+            <h2 id="inventory-title">Il tuo inventario parte da qui</h2>
+            <p>Registra il primo capo e seguilo dall’acquisto fino alla vendita.</p>
+            <button class="primary-button inline-primary" id="inventoryEmptyAddButton" type="button">Aggiungi il primo articolo</button>
           </div>
-          <div class="recent-row" id="recentRow"></div>
+
+          <div id="inventoryList" class="inventory-list"></div>
         </section>
 
-        <section class="results-section" aria-labelledby="results-title">
-          <div class="results-topline">
+        <section class="view" id="dashboardView" data-view="dashboard" aria-labelledby="dashboard-title" hidden>
+          <section class="hero-dashboard">
             <div>
-              <p class="section-kicker">RISULTATI</p>
-              <h2 id="results-title">Prezzi calcolati</h2>
+              <p class="section-kicker">PANORAMICA</p>
+              <h2 id="dashboard-title">Situazione MX LAB</h2>
+              <p id="dashboardPeriodLabel">Dati complessivi</p>
             </div>
-            <span class="status-pill" id="statusPill">Offline pronto</span>
-          </div>
+            <button class="secondary-button compact" id="dashboardAddButton" type="button">＋ Articolo</button>
+          </section>
 
-          <div class="segment-control" id="resultFilter" role="tablist" aria-label="Filtra risultati">
-            <button type="button" class="active" data-filter="all" role="tab" aria-selected="true">Tutto</button>
-            <button type="button" data-filter="prices" role="tab" aria-selected="false">Prezzi</button>
-            <button type="button" data-filter="minimums" role="tab" aria-selected="false">Minimi</button>
-            <button type="button" data-filter="offers" role="tab" aria-selected="false">Offerte</button>
-          </div>
+          <section class="kpi-grid">
+            <article class="kpi-card featured">
+              <span>Profitto realizzato</span>
+              <strong id="kpiProfit">0 €</strong>
+              <small id="kpiProfitSub">0 vendite</small>
+            </article>
+            <article class="kpi-card">
+              <span>Capitale investito</span>
+              <strong id="kpiInvested">0 €</strong>
+              <small>Articoli non venduti</small>
+            </article>
+            <article class="kpi-card">
+              <span>Valore target</span>
+              <strong id="kpiTargetValue">0 €</strong>
+              <small id="kpiExpectedProfit">Utile potenziale 0 €</small>
+            </article>
+            <article class="kpi-card">
+              <span>Tempo medio vendita</span>
+              <strong id="kpiAvgDays">—</strong>
+              <small id="kpiAvgMultiplier">Moltiplicatore medio —</small>
+            </article>
+          </section>
 
-          <p id="emptyState" class="empty-state" hidden>Inserisci almeno un prezzo target valido.</p>
-          <div id="resultsContainer" class="results-container"></div>
+          <section class="dashboard-card">
+            <div class="card-heading small-heading">
+              <div>
+                <p class="section-kicker">PIPELINE</p>
+                <h2>Stato dei capi</h2>
+              </div>
+              <button class="text-button" type="button" data-nav="inventory">Apri inventario</button>
+            </div>
+            <div class="pipeline-chart" id="pipelineChart"></div>
+          </section>
+
+          <section class="dashboard-card attention-card" id="attentionCard">
+            <div class="card-heading small-heading">
+              <div>
+                <p class="section-kicker">ATTENZIONE</p>
+                <h2>Articoli fermi</h2>
+              </div>
+              <span class="attention-count" id="attentionCount">0</span>
+            </div>
+            <div id="slowMoversList" class="compact-list"></div>
+          </section>
+
+          <section class="dashboard-card">
+            <div class="card-heading small-heading">
+              <div>
+                <p class="section-kicker">PERFORMANCE</p>
+                <h2>Vendite per piattaforma</h2>
+              </div>
+            </div>
+            <div id="platformPerformance" class="performance-list"></div>
+          </section>
+
+          <section class="dashboard-card">
+            <div class="card-heading small-heading">
+              <div>
+                <p class="section-kicker">ULTIME ATTIVITÀ</p>
+                <h2>Vendite recenti</h2>
+              </div>
+            </div>
+            <div id="recentSalesList" class="compact-list"></div>
+          </section>
         </section>
 
-        <section class="install-card" id="installCard">
-          <img src="./icon-192.png?v=4" alt="" width="44" height="44" />
-          <div>
-            <h2>Usalo come un’app</h2>
-            <p>In Safari premi Condividi, poi “Aggiungi alla schermata Home”.</p>
-          </div>
-          <button class="icon-button small" id="dismissInstallButton" type="button" aria-label="Nascondi suggerimento">×</button>
-        </section>
+        <section class="view" id="dataView" data-view="data" aria-labelledby="data-title" hidden>
+          <section class="settings-hero">
+            <p class="section-kicker">DATI E IMPOSTAZIONI</p>
+            <h2 id="data-title">Controllo completo</h2>
+            <p>Backup, esportazioni e preferenze restano sotto il tuo controllo.</p>
+          </section>
 
-        <footer>
-          <p>Formule ufficiali MXLAB · Dati salvati solo sul dispositivo</p>
-          <span id="appVersion">v4.0</span>
-        </footer>
+          <section class="settings-group">
+            <h3>Dati</h3>
+            <button class="settings-row" id="exportCsvButton" type="button">
+              <span class="settings-row-icon">⇩</span>
+              <span><strong>Esporta inventario CSV</strong><small>Apribile con Excel o Fogli</small></span>
+              <span>›</span>
+            </button>
+            <button class="settings-row" id="exportBackupButton" type="button">
+              <span class="settings-row-icon">⬡</span>
+              <span><strong>Scarica backup completo</strong><small>Inventario e impostazioni in JSON</small></span>
+              <span>›</span>
+            </button>
+            <button class="settings-row" id="importBackupButton" type="button">
+              <span class="settings-row-icon">⇧</span>
+              <span><strong>Ripristina un backup</strong><small>Sostituisce i dati presenti</small></span>
+              <span>›</span>
+            </button>
+            <input id="backupFileInput" type="file" accept="application/json,.json" hidden />
+          </section>
+
+          <section class="settings-group">
+            <h3>Preferenze</h3>
+            <button class="settings-row" id="toggleThemeRow" type="button">
+              <span class="settings-row-icon">◐</span>
+              <span><strong>Tema</strong><small id="themeSettingLabel">Scuro</small></span>
+              <span>›</span>
+            </button>
+            <button class="settings-row" id="installHelpButton" type="button">
+              <span class="settings-row-icon">□</span>
+              <span><strong>Installazione su iPhone</strong><small>Aggiungi alla schermata Home</small></span>
+              <span>›</span>
+            </button>
+          </section>
+
+          <section class="settings-group danger-zone">
+            <h3>Zona dati</h3>
+            <button class="settings-row danger-row" id="deleteAllDataButton" type="button">
+              <span class="settings-row-icon">×</span>
+              <span><strong>Elimina tutti i dati</strong><small>Operazione irreversibile</small></span>
+              <span>›</span>
+            </button>
+          </section>
+
+          <footer class="app-footer">
+            <p>Formule ufficiali MXLAB · Dati salvati solo sul dispositivo</p>
+            <span>Hub v1.0</span>
+          </footer>
+        </section>
       </main>
     </div>
 
-    <div class="sticky-actions" id="stickyActions">
-      <button class="share-button" id="shareButton" type="button">
-        <span aria-hidden="true">↗</span> Condividi
+    <nav class="bottom-nav" aria-label="Navigazione principale">
+      <button class="active" type="button" data-nav="calculator" aria-current="page">
+        <span class="nav-icon" aria-hidden="true">⌗</span><span>Prezzi</span>
       </button>
-      <button class="primary-button" id="copyButton" type="button">
-        <span aria-hidden="true">⧉</span> Copia tutto
+      <button type="button" data-nav="inventory">
+        <span class="nav-icon" aria-hidden="true">▧</span><span>Inventario</span>
       </button>
+      <button type="button" data-nav="dashboard">
+        <span class="nav-icon" aria-hidden="true">▥</span><span>Dashboard</span>
+      </button>
+      <button type="button" data-nav="data">
+        <span class="nav-icon" aria-hidden="true">•••</span><span>Dati</span>
+      </button>
+    </nav>
+
+    <div class="calculator-sticky-actions" id="calculatorStickyActions">
+      <button class="share-button" id="shareCalculatorButton" type="button"><span aria-hidden="true">↗</span> Condividi</button>
+      <button class="primary-button" id="copyCalculatorButton" type="button"><span aria-hidden="true">⧉</span> Copia tutto</button>
     </div>
+
+    <dialog class="sheet-dialog" id="itemDialog">
+      <form method="dialog" id="itemForm" class="sheet-content">
+        <header class="sheet-header">
+          <button class="sheet-close" type="button" data-close-dialog="itemDialog" aria-label="Chiudi">×</button>
+          <div>
+            <p class="section-kicker">INVENTARIO</p>
+            <h2 id="itemDialogTitle">Nuovo articolo</h2>
+          </div>
+          <button class="sheet-save" id="saveItemButton" type="submit">Salva</button>
+        </header>
+
+        <div class="sheet-body">
+          <input id="itemId" type="hidden" />
+          <section class="form-section">
+            <h3>Identità</h3>
+            <div class="form-grid two-cols">
+              <label class="field"><span>Marca *</span><input id="itemBrand" required autocomplete="off" placeholder="Ralph Lauren" /></label>
+              <label class="field"><span>Categoria</span><select id="itemCategory">
+                <option value="Polo">Polo</option><option value="T-shirt">T-shirt</option><option value="Camicia">Camicia</option>
+                <option value="Felpa">Felpa</option><option value="Maglione">Maglione</option><option value="Giacca">Giacca</option>
+                <option value="Pantaloni">Pantaloni</option><option value="Jeans">Jeans</option><option value="Shorts">Shorts</option>
+                <option value="Scarpe">Scarpe</option><option value="Accessorio">Accessorio</option><option value="Altro">Altro</option>
+              </select></label>
+            </div>
+            <label class="field"><span>Descrizione breve *</span><input id="itemTitle" required autocomplete="off" placeholder="Polo nera logo viola" /></label>
+            <div class="form-grid two-cols">
+              <label class="field"><span>Taglia</span><input id="itemSize" autocomplete="off" placeholder="M" /></label>
+              <label class="field"><span>Condizioni</span><select id="itemCondition"><option>Nuovo con cartellino</option><option>Nuovo senza cartellino</option><option selected>Ottime</option><option>Buone</option><option>Discrete</option></select></label>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <h3>Numeri</h3>
+            <div class="form-grid two-cols">
+              <label class="field"><span>Costo acquisto *</span><div class="input-wrap form-money"><span class="prefix">€</span><input id="itemCost" required inputmode="decimal" placeholder="5" /></div></label>
+              <label class="field"><span>Prezzo target *</span><div class="input-wrap form-money"><span class="prefix">€</span><input id="itemTarget" required inputmode="decimal" placeholder="15" /></div></label>
+            </div>
+            <div class="target-preview" id="itemTargetPreview">
+              <span>Prezzo Vinted</span><strong>—</strong><button type="button" id="openFullCalculatorFromItem">Vedi tutti</button>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <h3>Provenienza</h3>
+            <div class="form-grid two-cols">
+              <label class="field"><span>Fornitore o luogo</span><input id="itemSource" autocomplete="off" placeholder="Mercato Vimercate" /></label>
+              <label class="field"><span>Data acquisto</span><input id="itemPurchaseDate" type="date" /></label>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <h3>Workflow</h3>
+            <label class="field"><span>Stato</span><select id="itemStatus"><option value="prep">Da preparare</option><option value="photo">Da fotografare</option><option value="publish">Da pubblicare</option><option value="live">Pubblicato</option><option value="sold">Venduto</option></select></label>
+            <fieldset class="platform-fieldset">
+              <legend>Piattaforme pubblicate</legend>
+              <div id="itemPlatforms" class="platform-toggle-grid"></div>
+            </fieldset>
+            <label class="field"><span>Note</span><textarea id="itemNotes" rows="3" placeholder="Difetti, misure o promemoria"></textarea></label>
+          </section>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="sheet-dialog compact-dialog" id="itemActionsDialog">
+      <div class="sheet-content">
+        <header class="sheet-header">
+          <button class="sheet-close" type="button" data-close-dialog="itemActionsDialog" aria-label="Chiudi">×</button>
+          <div><p class="section-kicker" id="actionsItemCode">ARTICOLO</p><h2 id="actionsItemTitle">Azioni</h2></div>
+          <span></span>
+        </header>
+        <div class="sheet-body action-sheet-body">
+          <button type="button" id="advanceStatusButton"><span>→</span><span><strong>Avanza nel workflow</strong><small id="advanceStatusLabel">Passa allo stato successivo</small></span></button>
+          <button type="button" id="markSoldButton"><span>€</span><span><strong>Segna come venduto</strong><small>Registra incasso e profitto</small></span></button>
+          <button type="button" id="editItemButton"><span>✎</span><span><strong>Modifica articolo</strong><small>Aggiorna dati e prezzi</small></span></button>
+          <button type="button" id="duplicateItemButton"><span>⧉</span><span><strong>Duplica articolo</strong><small>Crea una copia modificabile</small></span></button>
+          <button type="button" id="calculateItemButton"><span>⌗</span><span><strong>Apri nel calcolatore</strong><small>Usa il target di questo capo</small></span></button>
+          <button class="danger-action" type="button" id="deleteItemButton"><span>×</span><span><strong>Elimina articolo</strong><small>Rimuove definitivamente la scheda</small></span></button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog class="sheet-dialog compact-dialog" id="saleDialog">
+      <form method="dialog" id="saleForm" class="sheet-content">
+        <header class="sheet-header">
+          <button class="sheet-close" type="button" data-close-dialog="saleDialog" aria-label="Chiudi">×</button>
+          <div><p class="section-kicker">VENDITA</p><h2>Registra vendita</h2></div>
+          <button class="sheet-save" type="submit">Salva</button>
+        </header>
+        <div class="sheet-body">
+          <label class="field"><span>Piattaforma *</span><select id="salePlatform" required></select></label>
+          <div class="form-grid two-cols">
+            <label class="field"><span>Prezzo venduto *</span><div class="input-wrap form-money"><span class="prefix" id="salePricePrefix">€</span><input id="salePrice" required inputmode="decimal" /></div></label>
+            <label class="field"><span>Incasso netto *</span><div class="input-wrap form-money"><span class="prefix">€</span><input id="saleNet" required inputmode="decimal" /></div></label>
+          </div>
+          <p class="field-hint">Il prezzo venduto usa la valuta della piattaforma. L’incasso netto va inserito in euro ed è quanto ti rimane realmente dopo eventuali commissioni.</p>
+          <label class="field"><span>Data vendita</span><input id="saleDate" type="date" /></label>
+          <div class="sale-preview">
+            <div><span>Profitto</span><strong id="saleProfitPreview">—</strong></div>
+            <div><span>Moltiplicatore</span><strong id="saleMultiplierPreview">—</strong></div>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="sheet-dialog compact-dialog" id="installDialog">
+      <div class="sheet-content">
+        <header class="sheet-header">
+          <button class="sheet-close" type="button" data-close-dialog="installDialog" aria-label="Chiudi">×</button>
+          <div><p class="section-kicker">IPHONE</p><h2>Aggiungi alla Home</h2></div><span></span>
+        </header>
+        <div class="sheet-body install-steps">
+          <p><strong>1.</strong> Apri il sito con Safari.</p>
+          <p><strong>2.</strong> Premi il pulsante Condividi.</p>
+          <p><strong>3.</strong> Seleziona “Aggiungi alla schermata Home”.</p>
+          <p><strong>4.</strong> Conferma il nome “MXLAB Hub”.</p>
+        </div>
+      </div>
+    </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
     <template id="targetInputTemplate">
       <div class="target-input-row">
-        <span class="target-number" aria-hidden="true"></span>
-        <div class="input-wrap target-input-wrap">
-          <span class="prefix">€</span>
-          <input class="target-input" inputmode="decimal" autocomplete="off" aria-label="Prezzo target" />
-        </div>
+        <span class="target-number"></span>
+        <div class="input-wrap target-input-wrap"><span class="prefix">€</span><input class="target-input" inputmode="decimal" autocomplete="off" aria-label="Prezzo target" /></div>
         <button class="remove-target-button" type="button" aria-label="Rimuovi target">×</button>
       </div>
     </template>
 
-    <script type="module" src="./app.js?v=4"></script>
+    <script type="module" src="./app.js?v=5"></script>
   </body>
 </html>

@@ -1,34 +1,27 @@
-# Prezzi MXLAB
+# MXLAB Reseller Hub
 
-Web app gratuita, installabile e utilizzabile offline per calcolare i prezzi multipiattaforma del progetto MXLAB.
+Web app mobile-first e installabile su iPhone per gestire l'attività di reselling MX LAB.
 
-## Funzioni principali
+## Moduli
 
-- calcolo immediato da un Prezzo Target;
-- confronto tra più target;
-- target rapidi e pulsanti ±1 / ±5;
-- prezzi per Vinted, Wallapop, eBay, Subito, Facebook Marketplace, Vestiaire Collective, Depop, Depop con boost e Grailed;
-- minimi accettabili e offerte automatiche;
-- copia di un singolo prezzo, di una scheda o di tutti i risultati;
-- condivisione tramite il menu nativo di iPhone;
-- cronologia locale degli ultimi target;
-- filtro Prezzi / Minimi / Offerte;
-- tema chiaro e scuro;
-- spedizione eBay personalizzabile, minimo 5,35 euro;
-- dati salvati esclusivamente sul dispositivo;
-- PWA con funzionamento offline e cache aggiornabile.
+- Calcolatore prezzi multipiattaforma con formule ufficiali MXLAB.
+- Inventario con codice progressivo, workflow, ricerca e filtri.
+- Registrazione delle vendite con profitto e moltiplicatore reali.
+- Dashboard con capitale investito, valore target, pipeline e articoli fermi.
+- Esportazione CSV e backup/ripristino JSON.
+- Salvataggio locale e funzionamento offline.
 
 ## Pubblicazione su GitHub Pages
 
-Carica tutti i file nella cartella principale del repository. In `Settings > Pages` usa:
+Caricare tutti i file nella radice del repository e usare:
 
-- Source: `Deploy from a branch`
-- Branch: `main`
-- Folder: `/ (root)`
+- Source: Deploy from a branch
+- Branch: main
+- Folder: / (root)
 
-## Installazione su iPhone
+## Aggiornamento dalla precedente versione
 
-Apri il sito in Safari, premi Condividi e scegli `Aggiungi alla schermata Home`.
+I dati del calcolatore già salvati vengono mantenuti. L'inventario utilizza una nuova area di archiviazione locale.
 
 ## Test
 
@@ -36,6 +29,6 @@ Apri il sito in Safari, premi Condividi e scegli `Aggiungi alla schermata Home`.
 npm test
 ```
 
-## Licenza
+## Privacy
 
-MIT.
+I dati dell'inventario restano nel browser del dispositivo. È consigliato scaricare periodicamente un backup JSON.

@@ -1,7 +1,7 @@
-const CACHE_NAME = 'mxlab-reseller-calculator-v4';
+const CACHE_NAME = 'mxlab-reseller-hub-v1';
 const APP_SHELL = [
-  './', './index.html', './styles.css', './app.js', './calculator.js', './manifest.webmanifest',
-  './icon-192.png', './icon-512.png', './apple-touch-icon.png',
+  './', './index.html', './styles.css', './app.js', './calculator.js', './inventory.js',
+  './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png',
 ];
 
 self.addEventListener('install', (event) => {
@@ -24,8 +24,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', copy));
+          if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', response.clone()));
           return response;
         })
         .catch(() => caches.match('./index.html')),
@@ -34,17 +33,11 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    caches.match(request).then((cached) => {
-      const network = fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          }
-          return response;
-        })
-        .catch(() => cached);
-      return cached || network;
-    }),
+    fetch(request)
+      .then((response) => {
+        if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone()));
+        return response;
+      })
+      .catch(() => caches.match(request)),
   );
 });
