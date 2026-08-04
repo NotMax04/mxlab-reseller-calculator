@@ -8,12 +8,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="MXLAB Hub" />
-    <meta name="description" content="Calcolatore prezzi, inventario, storico vendite e dashboard operativa MXLAB." />
+    <meta name="description" content="Calcolatore prezzi, inventario, studio annunci, storico vendite e dashboard operativa MXLAB." />
     <title>MXLAB Reseller Hub</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=11" />
-    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png?v=11" />
-    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png?v=11" />
-    <link rel="stylesheet" href="./styles.css?v=11" />
+    <link rel="manifest" href="./manifest.webmanifest?v=12" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png?v=12" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png?v=12" />
+    <link rel="stylesheet" href="./styles.css?v=12" />
   </head>
   <body>
     <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -22,7 +22,7 @@
     <div class="app-shell">
       <header class="topbar">
         <button class="brand" id="brandButton" type="button" aria-label="Apri dashboard">
-          <img class="brand-icon" src="./icon-192.png?v=11" alt="" width="48" height="48" />
+          <img class="brand-icon" src="./icon-192.png?v=12" alt="" width="48" height="48" />
           <div>
             <p class="eyebrow">MXLAB</p>
             <h1 id="pageTitle">Calcolatore</h1>
@@ -177,6 +177,49 @@
           <div id="inventoryList" class="inventory-list"></div>
         </section>
 
+        <section class="view" id="publishView" data-view="publish" aria-labelledby="publish-title" hidden>
+          <section class="publish-hero">
+            <div>
+              <p class="section-kicker">CROSS-LISTING ASSISTITO</p>
+              <h2 id="publish-title">Studio annunci</h2>
+              <p>Prepara foto, testi e prezzi una volta sola. Poi pubblica con una sessione guidata.</p>
+            </div>
+            <span class="local-badge">Solo sul tuo iPhone</span>
+          </section>
+
+          <section class="publish-profile-card">
+            <div>
+              <strong>Profilo di pubblicazione</strong>
+              <small>Le piattaforme standard sono già incluse. Gestisci solo le eccezioni.</small>
+            </div>
+            <label class="switch-row">
+              <span><strong>Facebook attivo</strong><small>Disattivalo quando raggiungi il limite mensile.</small></span>
+              <input id="facebookEnabled" type="checkbox" checked />
+            </label>
+          </section>
+
+          <section class="publish-toolbar">
+            <div class="search-wrap">
+              <span aria-hidden="true">⌕</span>
+              <input id="publishSearch" type="search" autocomplete="off" placeholder="Cerca un articolo da pubblicare" aria-label="Cerca articoli da pubblicare" />
+            </div>
+          </section>
+
+          <section class="publish-summary-strip" aria-label="Riepilogo pubblicazione">
+            <article><span>Da preparare</span><strong id="publishPendingKpi">0</strong></article>
+            <article><span>Pronti</span><strong id="publishReadyKpi">0</strong></article>
+            <article><span>Online</span><strong id="publishLiveKpi">0</strong></article>
+          </section>
+
+          <div class="publish-result-row"><p id="publishResultCount">Nessun articolo</p><span>Foto salvate localmente</span></div>
+          <div id="publishList" class="publish-list"></div>
+          <div class="empty-panel" id="publishEmpty" hidden>
+            <div class="empty-icon" aria-hidden="true">↗</div>
+            <h2>Nessun articolo da preparare</h2>
+            <p>Aggiungi un articolo all’inventario oppure modifica la ricerca.</p>
+          </div>
+        </section>
+
         <section class="view" id="historyView" data-view="history" aria-labelledby="history-title" hidden>
           <section class="history-hero">
             <div>
@@ -322,6 +365,11 @@
 
           <section class="settings-group">
             <h3>Dati</h3>
+            <button class="settings-row" id="openHistoryButton" type="button">
+              <span class="settings-row-icon">↺</span>
+              <span><strong>Storico vendite</strong><small>Consulta le 117 vendite importate</small></span>
+              <span>›</span>
+            </button>
             <button class="settings-row" id="exportCsvButton" type="button">
               <span class="settings-row-icon">⇩</span>
               <span><strong>Esporta inventario CSV</strong><small>Apribile con Excel o Fogli</small></span>
@@ -338,6 +386,7 @@
               <span>›</span>
             </button>
             <input id="backupFileInput" type="file" accept="application/json,.json" hidden />
+            <p class="field-hint media-backup-note">Il backup JSON include dati e testi. Le fotografie restano nell’archivio locale dell’app per evitare file di backup enormi.</p>
           </section>
 
           <section class="settings-group">
@@ -365,7 +414,7 @@
 
           <footer class="app-footer">
             <p>Formule ufficiali MXLAB · Dati salvati solo sul dispositivo</p>
-            <span id="appVersionLabel">Hub v2.3.2</span>
+            <span id="appVersionLabel">Hub v3.0.0</span>
           </footer>
         </section>
       </main>
@@ -378,8 +427,8 @@
       <button type="button" data-nav="inventory">
         <span class="nav-icon" aria-hidden="true">▧</span><span>Inventario</span>
       </button>
-      <button type="button" data-nav="history">
-        <span class="nav-icon" aria-hidden="true">↺</span><span>Storico</span>
+      <button type="button" data-nav="publish">
+        <span class="nav-icon" aria-hidden="true">↗</span><span>Pubblica</span>
       </button>
       <button type="button" data-nav="dashboard">
         <span class="nav-icon" aria-hidden="true">▥</span><span>Dashboard</span>
@@ -487,9 +536,11 @@
           <button type="button" id="advanceStatusButton"><span>→</span><span><strong>Avanza nel workflow</strong><small id="advanceStatusLabel">Passa allo stato successivo</small></span></button>
           <button type="button" id="markSoldButton"><span>€</span><span><strong>Segna come venduto</strong><small>Registra incasso e profitto</small></span></button>
           <button type="button" id="editItemButton"><span>✎</span><span><strong>Modifica articolo</strong><small>Aggiorna i dati del capo</small></span></button>
+          <button type="button" id="publishItemButton"><span>↗</span><span><strong>Prepara e pubblica</strong><small>Foto, testi, prezzi e piattaforme</small></span></button>
           <button type="button" id="updateTargetButton"><span>↘</span><span><strong>Aggiorna target</strong><small>Ribassa e ricalcola tutti i prezzi</small></span></button>
           <button type="button" id="duplicateItemButton"><span>⧉</span><span><strong>Duplica articolo</strong><small>Crea una copia modificabile</small></span></button>
           <button type="button" id="calculateItemButton"><span>⌗</span><span><strong>Apri nel calcolatore</strong><small>Usa il target di questo capo</small></span></button>
+          <button type="button" id="removeListingsButton" hidden><span>✓</span><span><strong>Rimuovi gli altri annunci</strong><small>Checklist dopo la vendita</small></span></button>
           <button class="danger-action" type="button" id="deleteItemButton"><span>×</span><span><strong>Elimina articolo</strong><small>Rimuove definitivamente la scheda</small></span></button>
         </div>
       </div>
@@ -543,6 +594,67 @@
       </form>
     </dialog>
 
+    <dialog class="sheet-dialog listing-studio-dialog" id="listingDialog">
+      <div class="sheet-content listing-studio-content">
+        <header class="sheet-header listing-studio-header">
+          <button class="sheet-close" type="button" data-close-dialog="listingDialog" aria-label="Chiudi">×</button>
+          <div><p class="section-kicker" id="listingItemCode">ANNUNCIO</p><h2 id="listingItemTitle">Studio annuncio</h2></div>
+          <button class="sheet-save" id="saveListingButton" type="button">Salva</button>
+        </header>
+        <div class="sheet-body listing-studio-body">
+          <section class="listing-readiness-card">
+            <div class="readiness-ring" id="listingReadinessRing"><strong id="listingReadinessPercent">0%</strong></div>
+            <div><strong id="listingReadinessLabel">Da completare</strong><small id="listingReadinessText">Completa la scheda per iniziare.</small></div>
+          </section>
+
+          <section class="listing-section">
+            <div class="listing-section-heading"><div><p class="section-kicker">1 · FOTO</p><h3>Galleria dell’articolo</h3></div><span id="listingPhotoCount">0 / 12</span></div>
+            <div id="listingPhotoGrid" class="listing-photo-grid"></div>
+            <button class="secondary-button full-width" id="addListingPhotosButton" type="button">＋ Importa foto dall’iPhone</button>
+            <input id="listingPhotoInput" type="file" accept="image/*" multiple hidden />
+            <p class="field-hint">La prima foto è la copertina. Tocca una foto per renderla principale.</p>
+          </section>
+
+          <section class="listing-section">
+            <div class="listing-section-heading"><div><p class="section-kicker">2 · SCHEDA UNICA</p><h3>Dettagli riutilizzati ovunque</h3></div><button class="text-button" id="generateDescriptionButton" type="button">Genera testo</button></div>
+            <div class="form-grid two-cols">
+              <label class="field"><span>Colore</span><input id="listingColor" autocomplete="off" placeholder="Nero" /></label>
+              <label class="field"><span>Materiale</span><input id="listingMaterial" autocomplete="off" placeholder="100% cotone" /></label>
+            </div>
+            <label class="field"><span>Misure principali</span><textarea id="listingMeasurements" rows="3" placeholder="Spalle 43 cm · Petto 46 cm · Lunghezza 70 cm"></textarea></label>
+            <label class="field"><span>Difetti</span><textarea id="listingDefects" rows="2" placeholder="Lascia vuoto se non ci sono difetti rilevanti"></textarea></label>
+            <label class="field"><span>Descrizione principale</span><textarea id="listingBaseDescription" rows="8" placeholder="Genera una descrizione oppure scrivila manualmente"></textarea></label>
+            <label class="switch-row vestiaire-switch">
+              <span><strong>Pubblica anche su Vestiaire</strong><small>Attivalo soltanto per marchi e articoli adatti.</small></span>
+              <input id="listingVestiaireEnabled" type="checkbox" />
+            </label>
+          </section>
+
+          <section class="listing-section">
+            <div class="listing-section-heading"><div><p class="section-kicker">3 · SESSIONE</p><h3>Pubblica piattaforma per piattaforma</h3></div><span id="listingPlatformProgress">0 / 0</span></div>
+            <p class="field-hint">Copia o condividi contenuti e foto, apri la piattaforma, poi segna il passaggio come completato.</p>
+            <div id="listingPlatformCards" class="listing-platform-cards"></div>
+          </section>
+
+          <button class="primary-button full-width publish-complete-button" id="completePublishingButton" type="button">Segna articolo come pubblicato</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog class="sheet-dialog compact-dialog" id="removalDialog">
+      <div class="sheet-content">
+        <header class="sheet-header">
+          <button class="sheet-close" type="button" data-close-dialog="removalDialog" aria-label="Chiudi">×</button>
+          <div><p class="section-kicker">DOPO LA VENDITA</p><h2>Rimuovi gli altri annunci</h2></div><span></span>
+        </header>
+        <div class="sheet-body">
+          <p class="field-hint removal-intro">Apri ogni piattaforma e rimuovi l’articolo ancora attivo.</p>
+          <div id="removalChecklist" class="removal-checklist"></div>
+          <button class="primary-button full-width" id="completeRemovalButton" type="button">Ho rimosso tutti gli annunci</button>
+        </div>
+      </div>
+    </dialog>
+
     <dialog class="sheet-dialog compact-dialog" id="installDialog">
       <div class="sheet-content">
         <header class="sheet-header">
@@ -568,6 +680,6 @@
       </div>
     </template>
 
-    <script type="module" src="./app.js?v=11"></script>
+    <script type="module" src="./app.js?v=12"></script>
   </body>
 </html>

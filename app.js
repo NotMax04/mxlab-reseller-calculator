@@ -1,6 +1,27 @@
 import { MIN_EBAY_SHIPPING, calculateMXLABPrices } from './calculator.js';
 import { GOOGLE_MIGRATION } from './seed-data.js';
 import {
+  PUBLISH_PLATFORMS,
+  createRemovalChecklist,
+  formatListingText,
+  generateBaseDescription,
+  generatePlatformContent,
+  getPlatform,
+  getPublishPlan,
+  listingReadiness,
+  markPlatformComplete,
+  normalizeListing,
+} from './listing.js';
+import {
+  addItemPhotos,
+  clearAllPhotos,
+  deleteItemPhotos,
+  deletePhoto,
+  getItemPhotos,
+  photoToFile,
+  setCoverPhoto,
+} from './media-store.js';
+import {
   ITEM_STATUSES,
   SELLING_PLATFORMS,
   createInventoryItem,
@@ -21,7 +42,7 @@ import {
   safeNumber,
 } from './inventory.js';
 
-const APP_VERSION = '2.3.2';
+const APP_VERSION = '3.0.0';
 const CALC_STORAGE_KEY = 'mxlab-reseller-calculator-v4';
 const CALC_HISTORY_KEY = 'mxlab-reseller-target-history-v1';
 const HUB_PREFS_KEY = 'mxlab-reseller-hub-prefs-v1';
@@ -44,6 +65,7 @@ const DEFAULT_PREFS = Object.freeze({
   inventorySort: 'newest',
   historyPlatform: 'all',
   lastSalePlatform: 'Vinted',
+  facebookEnabled: true,
 });
 
 const platformMeta = Object.freeze({
@@ -63,6 +85,7 @@ const DIRECT_PAYOUT_PLATFORMS = Object.freeze(['Vinted', 'Wallapop', 'Subito', '
 const viewMeta = Object.freeze({
   calculator: { title: 'Calcolatore', subtitle: 'Prezzi pronti per ogni piattaforma.' },
   inventory: { title: 'Inventario', subtitle: 'Ogni capo sotto controllo.' },
+  publish: { title: 'Pubblica', subtitle: 'Foto, testi e prezzi in un solo flusso.' },
   history: { title: 'Storico', subtitle: '117 vendite reali, sempre consultabili.' },
   dashboard: { title: 'Dashboard', subtitle: 'Numeri reali, decisioni migliori.' },
   data: { title: 'Dati', subtitle: 'Backup e impostazioni.' },
@@ -101,6 +124,11 @@ const elements = {
   inventoryList: document.getElementById('inventoryList'),
   inventoryEmpty: document.getElementById('inventoryEmpty'),
   inventoryResultCount: document.getElementById('inventoryResultCount'),
+  publishSearch: document.getElementById('publishSearch'),
+  publishList: document.getElementById('publishList'),
+  publishEmpty: document.getElementById('publishEmpty'),
+  publishResultCount: document.getElementById('publishResultCount'),
+  facebookEnabled: document.getElementById('facebookEnabled'),
   historySearch: document.getElementById('historySearch'),
   historyPlatformFilter: document.getElementById('historyPlatformFilter'),
   historyList: document.getElementById('historyList'),
@@ -113,6 +141,12 @@ const elements = {
   targetForm: document.getElementById('targetForm'),
   saleDialog: document.getElementById('saleDialog'),
   saleForm: document.getElementById('saleForm'),
+  listingDialog: document.getElementById('listingDialog'),
+  listingPhotoInput: document.getElementById('listingPhotoInput'),
+  listingPhotoGrid: document.getElementById('listingPhotoGrid'),
+  listingPlatformCards: document.getElementById('listingPlatformCards'),
+  removalDialog: document.getElementById('removalDialog'),
+  removalChecklist: document.getElementById('removalChecklist'),
   installDialog: document.getElementById('installDialog'),
   backupFileInput: document.getElementById('backupFileInput'),
 };
@@ -130,6 +164,8 @@ let history = loadHistory();
 let inventory = loadInventory();
 let salesHistory = loadSalesHistory();
 let businessData = loadBusinessData();
+let activeListingPhotos = [];
+let listingObjectUrls = [];
 
 function parseLocaleNumber(value) {
   const normalized = String(value ?? '').trim().replace(/\s/g, '').replace(',', '.');
@@ -182,6 +218,7 @@ function loadPrefs() {
     inventorySort: ['newest', 'oldest', 'target-desc', 'cost-desc', 'slowest'].includes(stored.inventorySort) ? stored.inventorySort : 'newest',
     historyPlatform: typeof stored.historyPlatform === 'string' ? stored.historyPlatform : 'all',
     lastSalePlatform: SELLING_PLATFORMS.includes(stored.lastSalePlatform) ? stored.lastSalePlatform : 'Vinted',
+    facebookEnabled: stored.facebookEnabled !== false,
   };
 }
 
@@ -342,7 +379,7 @@ function closeDialog(dialog) {
   dismissKeyboard();
   if (typeof dialog.close === 'function') dialog.close();
   else dialog.removeAttribute('open');
-  if (![elements.itemDialog, elements.itemActionsDialog, elements.targetDialog, elements.saleDialog, elements.installDialog].some((item) => item.open)) {
+  if (![elements.itemDialog, elements.itemActionsDialog, elements.targetDialog, elements.saleDialog, elements.listingDialog, elements.removalDialog, elements.installDialog].some((item) => item.open)) {
     unlockPageScroll();
     document.documentElement.classList.remove('keyboard-open');
   }
@@ -366,6 +403,7 @@ function navigate(view, options = {}) {
   elements.pageSubtitle.textContent = viewMeta[view].subtitle;
   elements.calculatorSticky.hidden = view !== 'calculator' || getCalculatorModels().length === 0;
   if (view === 'inventory') renderInventory();
+  if (view === 'publish') renderPublish();
   if (view === 'history') renderSalesHistory();
   if (view === 'dashboard') renderDashboard();
   if (view === 'data') renderSettings();
@@ -716,6 +754,7 @@ function collectItemForm() {
     cost: document.getElementById('itemCost').value,
     target,
     targetHistory: targetHistoryWithChange(existing, target),
+    listing: existing?.listing || {},
     source: document.getElementById('itemSource').value,
     purchaseDate: document.getElementById('itemPurchaseDate').value,
     receivedDate: document.getElementById('itemReceivedDate').value,
@@ -836,6 +875,9 @@ function openItemActions(item) {
   document.getElementById('advanceStatusLabel').textContent = advance.disabled ? 'Nessun passaggio successivo' : `Passa a “${ITEM_STATUSES[next].label}”`;
   document.getElementById('markSoldButton').disabled = item.status === 'sold';
   document.getElementById('updateTargetButton').disabled = item.status === 'sold';
+  document.getElementById('publishItemButton').disabled = item.status === 'sold';
+  const removalButton = document.getElementById('removeListingsButton');
+  removalButton.hidden = !(item.status === 'sold' && item.listing?.removalChecklist?.length && !item.removedElsewhere);
   openDialog(elements.itemActionsDialog);
 }
 
@@ -963,6 +1005,277 @@ function syncSaleCurrencyAndPrice(resetPrice = false) {
 }
 
 
+// CROSS-LISTING ASSISTANT
+function formatPublishPrice(content) {
+  if (!content || content.price == null) return '—';
+  return content.currency === 'USD' ? dollarWhole(content.price) : (Number.isInteger(content.price) ? euroWhole(content.price) : euroX90(content.price));
+}
+
+function getPublishItems() {
+  const query = String(elements.publishSearch?.value || '').trim().toLowerCase();
+  return inventory
+    .filter((item) => item.status !== 'sold')
+    .filter((item) => !query || [item.code, item.brand, item.title, item.category, item.size].some((value) => String(value || '').toLowerCase().includes(query)))
+    .sort((a, b) => {
+      const readyA = listingReadiness(a, a.listing?.photoCount || 0).percent;
+      const readyB = listingReadiness(b, b.listing?.photoCount || 0).percent;
+      return readyA - readyB || new Date(b.updatedAt) - new Date(a.updatedAt);
+    });
+}
+
+function publishCardMarkup(item) {
+  const readiness = listingReadiness(item, item.listing?.photoCount || 0);
+  const plan = getPublishPlan(item, prefs);
+  const completed = plan.filter((platform) => item.listing?.completedPlatforms?.[platform.id]).length;
+  const live = item.status === 'live';
+  return `<article class="publish-item-card" data-publish-item="${item.id}">
+    <button type="button" class="publish-item-main">
+      <div class="publish-item-topline">
+        <div><span class="item-code">${escapeHtml(item.code)}</span><h3>${escapeHtml(item.brand)} · ${escapeHtml(item.title)}</h3><p>${escapeHtml(item.category)}${item.size ? ` · ${escapeHtml(item.size)}` : ''}</p></div>
+        <span class="publish-state ${live ? 'live' : readiness.ready ? 'ready' : ''}">${live ? 'Online' : readiness.ready ? 'Pronto' : `${readiness.percent}%`}</span>
+      </div>
+      <div class="publish-progress-track"><span style="width:${readiness.percent}%"></span></div>
+      <div class="publish-item-meta"><span>${item.listing?.photoCount || 0} foto</span><span>${completed}/${plan.length} piattaforme</span><strong>${item.target > 0 ? formatMoney(item.target) : 'Target assente'}</strong></div>
+    </button>
+  </article>`;
+}
+
+function renderPublish() {
+  if (!elements.publishList) return;
+  elements.facebookEnabled.checked = prefs.facebookEnabled !== false;
+  const items = getPublishItems();
+  const all = inventory.filter((item) => item.status !== 'sold');
+  const ready = all.filter((item) => listingReadiness(item, item.listing?.photoCount || 0).ready && item.status !== 'live').length;
+  const live = all.filter((item) => item.status === 'live').length;
+  document.getElementById('publishPendingKpi').textContent = Math.max(0, all.length - ready - live);
+  document.getElementById('publishReadyKpi').textContent = ready;
+  document.getElementById('publishLiveKpi').textContent = live;
+  elements.publishResultCount.textContent = items.length === 1 ? '1 articolo' : `${items.length} articoli`;
+  elements.publishEmpty.hidden = items.length > 0;
+  elements.publishList.hidden = items.length === 0;
+  elements.publishList.innerHTML = items.map(publishCardMarkup).join('');
+  elements.publishList.querySelectorAll('[data-publish-item]').forEach((card) => card.addEventListener('click', () => {
+    const item = inventory.find((entry) => entry.id === card.dataset.publishItem);
+    if (item) openListingStudio(item);
+  }));
+}
+
+function revokeListingObjectUrls() {
+  listingObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+  listingObjectUrls = [];
+}
+
+function updateListingPhotoCount(item) {
+  item.listing = normalizeListing(item.listing);
+  item.listing.photoCount = activeListingPhotos.length;
+  item.listing.updatedAt = new Date().toISOString();
+}
+
+function collectListingForm(item) {
+  const current = normalizeListing(item.listing);
+  item.listing = {
+    ...current,
+    color: document.getElementById('listingColor').value.trim(),
+    material: document.getElementById('listingMaterial').value.trim(),
+    measurements: document.getElementById('listingMeasurements').value.trim(),
+    defects: document.getElementById('listingDefects').value.trim(),
+    baseDescription: document.getElementById('listingBaseDescription').value.trim(),
+    vestiaireEnabled: document.getElementById('listingVestiaireEnabled').checked,
+    photoCount: activeListingPhotos.length,
+    updatedAt: new Date().toISOString(),
+  };
+  item.updatedAt = new Date().toISOString();
+  return item;
+}
+
+function renderListingPhotos() {
+  revokeListingObjectUrls();
+  document.getElementById('listingPhotoCount').textContent = `${activeListingPhotos.length} / 12`;
+  if (!activeListingPhotos.length) {
+    elements.listingPhotoGrid.innerHTML = '<div class="photo-empty"><span>▧</span><strong>Nessuna foto</strong><small>Importale una sola volta e riusale per tutte le piattaforme.</small></div>';
+    return;
+  }
+  elements.listingPhotoGrid.innerHTML = activeListingPhotos.map((photo, index) => {
+    const url = URL.createObjectURL(photo.blob);
+    listingObjectUrls.push(url);
+    return `<article class="listing-photo ${index === 0 ? 'cover' : ''}" data-photo-id="${photo.id}">
+      <button class="photo-cover-button" type="button" title="Imposta come copertina"><img src="${url}" alt="Foto ${index + 1}" /></button>
+      <span>${index === 0 ? 'Copertina' : index + 1}</span>
+      <button class="photo-delete-button" type="button" aria-label="Elimina foto">×</button>
+    </article>`;
+  }).join('');
+  elements.listingPhotoGrid.querySelectorAll('.photo-cover-button').forEach((button) => button.addEventListener('click', async () => {
+    const card = button.closest('[data-photo-id]');
+    await setCoverPhoto(selectedItemId, card.dataset.photoId);
+    activeListingPhotos = await getItemPhotos(selectedItemId);
+    renderListingPhotos();
+    refreshListingStudio();
+  }));
+  elements.listingPhotoGrid.querySelectorAll('.photo-delete-button').forEach((button) => button.addEventListener('click', async () => {
+    const card = button.closest('[data-photo-id]');
+    await deletePhoto(card.dataset.photoId);
+    activeListingPhotos = await getItemPhotos(selectedItemId);
+    const item = selectedItem();
+    if (item) { updateListingPhotoCount(item); saveInventory(); }
+    renderListingPhotos();
+    refreshListingStudio();
+  }));
+}
+
+function renderListingReadiness(item) {
+  const readiness = listingReadiness(item, activeListingPhotos.length);
+  document.getElementById('listingReadinessPercent').textContent = `${readiness.percent}%`;
+  document.getElementById('listingReadinessRing').style.setProperty('--readiness', `${readiness.percent * 3.6}deg`);
+  document.getElementById('listingReadinessLabel').textContent = readiness.ready ? 'Scheda pronta' : 'Scheda da completare';
+  const missing = readiness.checks.filter((check) => !check.done).map((check) => check.label);
+  document.getElementById('listingReadinessText').textContent = readiness.ready ? 'Puoi iniziare la sessione di pubblicazione.' : `Manca: ${missing.join(', ')}.`;
+  return readiness;
+}
+
+function platformCardMarkup(item, platform, content) {
+  const listing = normalizeListing(item.listing);
+  const done = Boolean(listing.completedPlatforms[platform.id]);
+  const url = listing.listingUrls[platform.id] || '';
+  const boost = platform.id === 'depop' && content.boostPrice ? `<small>Con boost: ${euroX90(content.boostPrice)}</small>` : '';
+  return `<article class="listing-platform-card ${done ? 'completed' : ''}" data-listing-platform="${platform.id}">
+    <header><span class="platform-badge">${platform.badge}</span><div><strong>${escapeHtml(platform.label)}</strong><small>${escapeHtml(content.title)}</small></div><em>${formatPublishPrice(content)}${boost}</em></header>
+    <div class="platform-action-grid">
+      <button type="button" data-platform-action="title">Titolo</button>
+      <button type="button" data-platform-action="description">Descrizione</button>
+      <button type="button" data-platform-action="share">Condividi</button>
+      <button type="button" data-platform-action="open">Apri</button>
+    </div>
+    <label class="listing-url-field"><span>Link annuncio <small>(facoltativo)</small></span><input type="url" data-platform-url value="${escapeHtml(url)}" placeholder="Incollalo dopo la pubblicazione" /></label>
+    <label class="platform-done-row"><input type="checkbox" data-platform-done ${done ? 'checked' : ''} /><span><strong>${done ? 'Completato' : 'Segna come completato'}</strong><small>Serve per la checklist dopo la vendita.</small></span></label>
+  </article>`;
+}
+
+function refreshListingStudio() {
+  const item = selectedItem();
+  if (!item) return;
+  collectListingForm(item);
+  const readiness = renderListingReadiness(item);
+  const priceModel = calculateMXLABPrices(item.target, calculator.ebayShipping);
+  const contents = generatePlatformContent(item, priceModel);
+  const plan = getPublishPlan(item, prefs);
+  const completed = plan.filter((platform) => item.listing.completedPlatforms[platform.id]).length;
+  document.getElementById('listingPlatformProgress').textContent = `${completed} / ${plan.length}`;
+  elements.listingPlatformCards.innerHTML = plan.map((platform) => platformCardMarkup(item, platform, contents[platform.id])).join('');
+  document.getElementById('completePublishingButton').disabled = !readiness.ready || completed < plan.length;
+  bindListingPlatformCards(item, contents);
+}
+
+function bindListingPlatformCards(item, contents) {
+  elements.listingPlatformCards.querySelectorAll('[data-listing-platform]').forEach((card) => {
+    const platformId = card.dataset.listingPlatform;
+    const platform = getPlatform(platformId);
+    const content = contents[platformId];
+    card.querySelectorAll('[data-platform-action]').forEach((button) => button.addEventListener('click', async () => {
+      collectListingForm(item);
+      const action = button.dataset.platformAction;
+      if (action === 'title') return copyText(content.title, `Titolo ${platform.label} copiato`);
+      if (action === 'description') return copyText(content.description, `Descrizione ${platform.label} copiata`);
+      if (action === 'open') {
+        await copyText(formatListingText(platformId, content), 'Contenuti copiati');
+        window.open(platform.openUrl, '_blank', 'noopener');
+        return;
+      }
+      if (action === 'share') await shareListingPackage(platform, content);
+    }));
+    card.querySelector('[data-platform-url]').addEventListener('change', (event) => {
+      item.listing.listingUrls[platformId] = event.target.value.trim();
+      saveInventory();
+    });
+    card.querySelector('[data-platform-done]').addEventListener('change', (event) => {
+      item.listing = markPlatformComplete(item, platformId, event.target.checked);
+      saveInventory();
+      refreshListingStudio();
+      renderPublish();
+    });
+  });
+}
+
+async function shareListingPackage(platform, content) {
+  const text = formatListingText(platform.id, content);
+  const files = activeListingPhotos.map(photoToFile);
+  if (navigator.share) {
+    try {
+      const payload = { title: content.title, text };
+      if (files.length && navigator.canShare?.({ files })) payload.files = files;
+      await navigator.share(payload);
+      return;
+    } catch (error) {
+      if (error?.name === 'AbortError') return;
+    }
+  }
+  await copyText(text, 'Contenuti copiati');
+}
+
+async function openListingStudio(item) {
+  if (!item || item.status === 'sold') return;
+  closeDialog(elements.itemActionsDialog);
+  selectedItemId = item.id;
+  item.listing = normalizeListing(item.listing);
+  activeListingPhotos = await getItemPhotos(item.id).catch(() => []);
+  updateListingPhotoCount(item);
+  saveInventory();
+  document.getElementById('listingItemCode').textContent = item.code;
+  document.getElementById('listingItemTitle').textContent = `${item.brand} · ${item.title}`;
+  document.getElementById('listingColor').value = item.listing.color;
+  document.getElementById('listingMaterial').value = item.listing.material;
+  document.getElementById('listingMeasurements').value = item.listing.measurements;
+  document.getElementById('listingDefects').value = item.listing.defects;
+  document.getElementById('listingBaseDescription').value = item.listing.baseDescription || generateBaseDescription(item);
+  document.getElementById('listingVestiaireEnabled').checked = item.listing.vestiaireEnabled;
+  renderListingPhotos();
+  refreshListingStudio();
+  openDialog(elements.listingDialog);
+}
+
+function saveListingDraft({ close = false } = {}) {
+  const item = selectedItem();
+  if (!item) return;
+  collectListingForm(item);
+  if (listingReadiness(item, activeListingPhotos.length).ready && ['prep', 'photo'].includes(item.status)) item.status = 'publish';
+  saveInventory();
+  renderInventory();
+  renderPublish();
+  if (close) closeDialog(elements.listingDialog);
+  showToast('Scheda annuncio salvata');
+}
+
+function renderRemovalChecklist(item) {
+  const listing = normalizeListing(item.listing);
+  elements.removalChecklist.innerHTML = listing.removalChecklist.length
+    ? listing.removalChecklist.map((entry) => {
+        const platform = getPlatform(entry.platformId);
+        const url = listing.listingUrls[entry.platformId] || platform?.openUrl || '#';
+        return `<article class="removal-row ${entry.done ? 'done' : ''}" data-removal-platform="${entry.platformId}">
+          <label><input type="checkbox" ${entry.done ? 'checked' : ''} /><span><strong>${escapeHtml(platform?.label || entry.platformId)}</strong><small>${entry.done ? 'Rimosso' : 'Ancora da rimuovere'}</small></span></label>
+          <button type="button" data-removal-open data-url="${escapeHtml(url)}">Apri</button>
+        </article>`;
+      }).join('')
+    : '<p class="dashboard-empty">Nessun altro annuncio registrato.</p>';
+  elements.removalChecklist.querySelectorAll('[data-removal-platform] input').forEach((checkbox) => checkbox.addEventListener('change', () => {
+    const row = checkbox.closest('[data-removal-platform]');
+    const entry = item.listing.removalChecklist.find((value) => value.platformId === row.dataset.removalPlatform);
+    if (entry) entry.done = checkbox.checked;
+    saveInventory();
+    renderRemovalChecklist(item);
+  }));
+  elements.removalChecklist.querySelectorAll('[data-removal-open]').forEach((button) => button.addEventListener('click', () => window.open(button.dataset.url, '_blank', 'noopener')));
+}
+
+function openRemovalDialog(item) {
+  if (!item) return;
+  closeDialog(elements.itemActionsDialog);
+  selectedItemId = item.id;
+  item.listing = normalizeListing(item.listing);
+  renderRemovalChecklist(item);
+  openDialog(elements.removalDialog);
+}
+
+
 // SALES HISTORY + GOOGLE SHEETS MIGRATION
 function getSalesMetrics(sales = salesHistory) {
   const revenue = roundMoney(sales.reduce((sum, sale) => sum + safeNumber(sale.price), 0));
@@ -1069,6 +1382,7 @@ function mergeGoogleMigration({ silent = false } = {}) {
   try { localStorage.setItem(GOOGLE_MIGRATION_KEY, GOOGLE_MIGRATION.generatedAt || new Date().toISOString()); } catch { /* no-op */ }
   const repairedItems = applyDataQualityRepairs({ force: true, silent: true });
   renderInventory();
+  renderPublish();
   renderSalesHistory();
   renderDashboard();
   renderBusinessData();
@@ -1269,7 +1583,7 @@ async function importBackup(file) {
     if (backup.prefs?.theme && ['dark', 'light'].includes(backup.prefs.theme)) prefs.theme = backup.prefs.theme;
     saveInventory(); saveSalesHistory(); saveBusinessData(); saveCalculator(); saveHistory(); savePrefs();
     applyDataQualityRepairs({ force: true, silent: true });
-    renderTargetInputs(); renderCalculatorResults(); renderHistory(); renderInventory(); renderSalesHistory(); renderDashboard(); renderBusinessData(); applyTheme();
+    renderTargetInputs(); renderCalculatorResults(); renderHistory(); renderInventory(); renderPublish(); renderSalesHistory(); renderDashboard(); renderBusinessData(); applyTheme();
     showToast('Backup ripristinato');
   } catch {
     showToast('File di backup non valido');
@@ -1346,6 +1660,14 @@ function initializeEvents() {
   elements.historySearch.addEventListener('input', renderSalesHistory);
   elements.historyPlatformFilter.addEventListener('change', () => { prefs.historyPlatform = elements.historyPlatformFilter.value; savePrefs(); renderSalesHistory(); });
   document.getElementById('exportHistoryCsvButton').addEventListener('click', exportSalesHistoryCsv);
+  document.getElementById('openHistoryButton').addEventListener('click', () => navigate('history'));
+  elements.publishSearch.addEventListener('input', renderPublish);
+  elements.facebookEnabled.addEventListener('change', () => {
+    prefs.facebookEnabled = elements.facebookEnabled.checked;
+    savePrefs();
+    renderPublish();
+    if (elements.listingDialog.open) refreshListingStudio();
+  });
 
   document.getElementById('itemTitle').addEventListener('input', suggestItemIdentity);
   document.getElementById('itemBrand').addEventListener('input', () => { document.getElementById('itemBrand').dataset.auto = 'false'; });
@@ -1389,35 +1711,104 @@ function initializeEvents() {
     const item = createInventoryItem(payload, inventory);
     if (existingIndex >= 0) inventory[existingIndex] = item;
     else inventory.unshift(item);
-    saveInventory(); closeDialog(elements.itemDialog); renderInventory(); renderDashboard(); showToast(existingIndex >= 0 ? 'Articolo aggiornato' : `${item.code} aggiunto`);
+    saveInventory(); closeDialog(elements.itemDialog); renderInventory(); renderPublish(); renderDashboard(); showToast(existingIndex >= 0 ? 'Articolo aggiornato' : `${item.code} aggiunto`);
   });
 
   document.querySelectorAll('[data-close-dialog]').forEach((button) => button.addEventListener('click', () => closeDialog(document.getElementById(button.dataset.closeDialog))));
   document.querySelectorAll('dialog').forEach((dialog) => dialog.addEventListener('close', () => {
-    if (![elements.itemDialog, elements.itemActionsDialog, elements.targetDialog, elements.saleDialog, elements.installDialog].some((item) => item.open)) document.body.classList.remove('dialog-open');
+    if (dialog === elements.listingDialog) revokeListingObjectUrls();
+    if (![elements.itemDialog, elements.itemActionsDialog, elements.targetDialog, elements.saleDialog, elements.listingDialog, elements.removalDialog, elements.installDialog].some((item) => item.open)) document.body.classList.remove('dialog-open');
   }));
 
   document.getElementById('advanceStatusButton').addEventListener('click', () => {
     const item = selectedItem(); if (!item) return;
     const next = nextStatus(item.status); if (next === item.status) return;
-    item.status = next; item.updatedAt = new Date().toISOString(); saveInventory(); closeDialog(elements.itemActionsDialog); renderInventory(); renderDashboard(); showToast(`Ora: ${ITEM_STATUSES[next].label}`);
+    item.status = next; item.updatedAt = new Date().toISOString(); saveInventory(); closeDialog(elements.itemActionsDialog); renderInventory(); renderPublish(); renderDashboard(); showToast(`Ora: ${ITEM_STATUSES[next].label}`);
   });
   document.getElementById('markSoldButton').addEventListener('click', () => openSaleDialog(selectedItem()));
   document.getElementById('editItemButton').addEventListener('click', () => openItemDialog(selectedItem()));
+  document.getElementById('publishItemButton').addEventListener('click', () => openListingStudio(selectedItem()));
+  document.getElementById('removeListingsButton').addEventListener('click', () => openRemovalDialog(selectedItem()));
   document.getElementById('updateTargetButton').addEventListener('click', () => openTargetDialog(selectedItem()));
   document.getElementById('duplicateItemButton').addEventListener('click', () => {
     const item = selectedItem(); if (!item) return;
     closeDialog(elements.itemActionsDialog);
-    const copy = { ...item, id: undefined, code: undefined, status: 'prep', sale: null, platforms: [] };
+    const copy = { ...item, id: undefined, code: undefined, status: 'prep', sale: null, platforms: [], listing: { ...normalizeListing(item.listing), completedPlatforms: {}, listingUrls: {}, removalChecklist: [], photoCount: 0 } };
     openItemDialog(copy);
     document.getElementById('itemId').value = '';
     document.getElementById('itemDialogTitle').textContent = 'Duplica articolo';
   });
   document.getElementById('calculateItemButton').addEventListener('click', () => calculateItemInCalculator(selectedItem()));
-  document.getElementById('deleteItemButton').addEventListener('click', () => {
+  document.getElementById('deleteItemButton').addEventListener('click', async () => {
     const item = selectedItem(); if (!item) return;
     if (!window.confirm(`Eliminare definitivamente ${item.code}?`)) return;
-    inventory = inventory.filter((entry) => entry.id !== item.id); saveInventory(); closeDialog(elements.itemActionsDialog); renderInventory(); renderDashboard(); showToast('Articolo eliminato');
+    await deleteItemPhotos(item.id).catch(() => {});
+    inventory = inventory.filter((entry) => entry.id !== item.id); saveInventory(); closeDialog(elements.itemActionsDialog); renderInventory(); renderPublish(); renderDashboard(); showToast('Articolo eliminato');
+  });
+
+  document.getElementById('saveListingButton').addEventListener('click', () => saveListingDraft({ close: true }));
+  document.getElementById('addListingPhotosButton').addEventListener('click', () => elements.listingPhotoInput.click());
+  elements.listingPhotoInput.addEventListener('change', async () => {
+    const item = selectedItem();
+    if (!item) return;
+    const remaining = Math.max(0, 12 - activeListingPhotos.length);
+    if (!remaining) return showToast('Massimo 12 fotografie');
+    document.getElementById('addListingPhotosButton').disabled = true;
+    try {
+      await addItemPhotos(item.id, elements.listingPhotoInput.files, activeListingPhotos.length, 12);
+      activeListingPhotos = await getItemPhotos(item.id);
+      updateListingPhotoCount(item);
+      if (item.status === 'prep') item.status = 'photo';
+      saveInventory();
+      renderListingPhotos();
+      refreshListingStudio();
+      renderInventory();
+      renderPublish();
+      showToast('Foto importate');
+    } catch { showToast('Impossibile importare le foto'); }
+    finally { elements.listingPhotoInput.value = ''; document.getElementById('addListingPhotosButton').disabled = false; }
+  });
+  ['listingColor', 'listingMaterial', 'listingMeasurements', 'listingDefects', 'listingBaseDescription'].forEach((id) => {
+    document.getElementById(id).addEventListener('input', () => {
+      const item = selectedItem(); if (!item) return;
+      collectListingForm(item);
+      renderListingReadiness(item);
+    });
+    document.getElementById(id).addEventListener('change', refreshListingStudio);
+  });
+  document.getElementById('listingVestiaireEnabled').addEventListener('change', refreshListingStudio);
+  document.getElementById('generateDescriptionButton').addEventListener('click', () => {
+    const item = selectedItem(); if (!item) return;
+    collectListingForm(item);
+    item.listing.baseDescription = generateBaseDescription(item);
+    document.getElementById('listingBaseDescription').value = item.listing.baseDescription;
+    refreshListingStudio();
+    showToast('Descrizione generata');
+  });
+  document.getElementById('completePublishingButton').addEventListener('click', () => {
+    const item = selectedItem(); if (!item) return;
+    collectListingForm(item);
+    const plan = getPublishPlan(item, prefs);
+    const allDone = plan.every((platform) => item.listing.completedPlatforms[platform.id]);
+    const ready = listingReadiness(item, activeListingPhotos.length).ready;
+    if (!ready || !allDone) return showToast('Completa foto, scheda e piattaforme');
+    item.status = 'live';
+    item.updatedAt = new Date().toISOString();
+    saveInventory();
+    closeDialog(elements.listingDialog);
+    renderInventory(); renderPublish(); renderDashboard();
+    showToast(`${item.code} pubblicato`);
+  });
+  document.getElementById('completeRemovalButton').addEventListener('click', () => {
+    const item = selectedItem(); if (!item) return;
+    item.listing = normalizeListing(item.listing);
+    item.listing.removalChecklist.forEach((entry) => { entry.done = true; });
+    item.removedElsewhere = true;
+    item.updatedAt = new Date().toISOString();
+    saveInventory();
+    closeDialog(elements.removalDialog);
+    renderInventory(); renderDashboard();
+    showToast('Annunci rimossi');
   });
 
   document.getElementById('newTargetInput').addEventListener('input', renderTargetUpdatePreview);
@@ -1439,6 +1830,7 @@ function initializeEvents() {
     saveInventory();
     closeDialog(elements.targetDialog);
     renderInventory();
+    renderPublish();
     renderDashboard();
     showToast(`Nuovo target: ${formatMoney(target)}`);
   });
@@ -1470,8 +1862,11 @@ function initializeEvents() {
     };
     prefs.lastSalePlatform = item.sale.platform;
     savePrefs();
+    item.listing = normalizeListing(item.listing);
+    item.listing.removalChecklist = createRemovalChecklist(item, item.sale.platform);
     item.updatedAt = new Date().toISOString();
-    saveInventory(); closeDialog(elements.saleDialog); renderInventory(); renderDashboard(); showToast(`Vendita registrata: ${formatMoney(getItemProfit(item))} di profitto`);
+    saveInventory(); closeDialog(elements.saleDialog); renderInventory(); renderPublish(); renderDashboard(); showToast(`Vendita registrata: ${formatMoney(getItemProfit(item))} di profitto`);
+    if (item.listing.removalChecklist.length) window.setTimeout(() => openRemovalDialog(item), 220);
   });
 
   document.getElementById('exportCsvButton').addEventListener('click', exportCsv);
@@ -1480,12 +1875,13 @@ function initializeEvents() {
   document.getElementById('importBackupButton').addEventListener('click', () => elements.backupFileInput.click());
   elements.backupFileInput.addEventListener('change', () => importBackup(elements.backupFileInput.files?.[0]));
   document.getElementById('installHelpButton').addEventListener('click', () => openDialog(elements.installDialog));
-  document.getElementById('deleteAllDataButton').addEventListener('click', () => {
+  document.getElementById('deleteAllDataButton').addEventListener('click', async () => {
     if (!window.confirm('Eliminare inventario, cronologia e impostazioni MXLAB?')) return;
     if (!window.confirm('Confermi? Non sarà possibile recuperare i dati senza un backup.')) return;
     inventory = []; salesHistory = []; businessData = { lots: [], suppliers: [], expenses: [], checklist: [] }; history = []; calculator = { ...DEFAULT_CALCULATOR, targets: [15] }; prefs = { ...DEFAULT_PREFS };
+    await clearAllPhotos().catch(() => {});
     [INVENTORY_KEY, SALES_HISTORY_KEY, BUSINESS_DATA_KEY, GOOGLE_MIGRATION_KEY, DATA_REPAIR_KEY, CALC_HISTORY_KEY, CALC_STORAGE_KEY, HUB_PREFS_KEY].forEach((key) => localStorage.removeItem(key));
-    saveCalculator(); savePrefs(); renderTargetInputs(); renderHistory(); renderCalculatorResults(); renderInventory(); renderSalesHistory(); renderDashboard(); renderBusinessData(); applyTheme(); navigate('calculator'); showToast('Dati eliminati');
+    saveCalculator(); savePrefs(); renderTargetInputs(); renderHistory(); renderCalculatorResults(); renderInventory(); renderPublish(); renderSalesHistory(); renderDashboard(); renderBusinessData(); applyTheme(); navigate('calculator'); showToast('Dati eliminati');
   });
 }
 
@@ -1502,7 +1898,7 @@ function applyAppViewport() {
   root.style.setProperty('--app-vw', `${width}px`);
   root.style.setProperty('--app-vv-top', `${top}px`);
   root.style.setProperty('--app-vv-left', `${left}px`);
-  root.classList.toggle('keyboard-open', keyboardOpen && elements.itemDialog?.open);
+  root.classList.toggle('keyboard-open', keyboardOpen && (elements.itemDialog?.open || elements.listingDialog?.open));
 }
 
 function syncAppViewport() {
@@ -1540,13 +1936,14 @@ function registerViewportHandling() {
 }
 
 function registerServiceWorker() {
+  if (new URLSearchParams(window.location.search).has('no-sw')) return;
   if (!('serviceWorker' in navigator)) {
     elements.statusPill.textContent = 'Solo online';
     return;
   }
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('./sw.js?v=11', { updateViaCache: 'none' });
+      const registration = await navigator.serviceWorker.register('./sw.js?v=12', { updateViaCache: 'none' });
       elements.statusPill.textContent = navigator.onLine ? 'Offline pronto' : 'Modalità offline';
       let refreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -1564,6 +1961,7 @@ function registerServiceWorker() {
 }
 
 function initialize() {
+  navigator.storage?.persist?.().catch(() => false);
   if (elements.appVersionLabel) elements.appVersionLabel.textContent = `Hub v${APP_VERSION}`;
   ensureGoogleMigration();
   applyDataQualityRepairs({ silent: true });
@@ -1575,10 +1973,13 @@ function initialize() {
   elements.ebayShipping.value = formatters.x90.format(calculator.ebayShipping);
   renderCalculatorResults();
   renderInventory();
+  renderPublish();
   renderSalesHistory();
   renderDashboard();
   renderBusinessData();
   initializeEvents();
+  const requestedView = new URLSearchParams(window.location.search).get('view');
+  if (requestedView && Object.hasOwn(viewMeta, requestedView)) prefs.view = requestedView;
   navigate(prefs.view, { keepScroll: true });
   registerServiceWorker();
 }

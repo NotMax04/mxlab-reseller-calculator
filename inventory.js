@@ -1,3 +1,5 @@
+import { normalizeListing } from './listing.js';
+
 export const ITEM_STATUSES = Object.freeze({
   prep: { label: 'Da preparare', short: 'Preparare', order: 0 },
   photo: { label: 'Da fotografare', short: 'Foto', order: 1 },
@@ -115,6 +117,13 @@ export function createInventoryItem(input, items = []) {
   const cost = Math.max(0, roundMoney(input.cost));
   const target = Math.max(0, roundMoney(input.target));
   const targetHistory = normalizeTargetHistory(input.targetHistory, target, String(input.createdAt || now).slice(0, 10));
+  const platforms = Array.isArray(input.platforms) ? [...new Set(input.platforms.map(String))] : [];
+  const listing = normalizeListing(input.listing);
+  if (status === 'live' && !Object.keys(listing.completedPlatforms).length && platforms.length) {
+    const ids = { Vinted: 'vinted', Wallapop: 'wallapop', eBay: 'ebay', Subito: 'subito', 'Facebook Marketplace': 'facebook', 'Vestiaire Collective': 'vestiaire', Depop: 'depop', 'Depop con boost': 'depop', Grailed: 'grailed' };
+    platforms.forEach((platform) => { if (ids[platform]) listing.completedPlatforms[ids[platform]] = true; });
+    if (listing.completedPlatforms.vestiaire) listing.vestiaireEnabled = true;
+  }
   const sale = input.sale && status === 'sold'
     ? {
         platform: String(input.sale.platform || 'Vinted'),
@@ -136,11 +145,12 @@ export function createInventoryItem(input, items = []) {
     cost,
     target,
     targetHistory,
+    listing,
     source: String(input.source || '').trim(),
     purchaseDate: input.purchaseDate || localDateISO(),
     receivedDate: input.receivedDate || '',
     status,
-    platforms: Array.isArray(input.platforms) ? [...new Set(input.platforms.map(String))] : [],
+    platforms,
     notes: String(input.notes || '').trim(),
     lotCode: String(input.lotCode || '').trim(),
     costProvisional: Boolean(input.costProvisional),
