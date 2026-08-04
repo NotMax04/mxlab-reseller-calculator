@@ -21,7 +21,7 @@ import {
   safeNumber,
 } from './inventory.js';
 
-const APP_VERSION = '2.3.1';
+const APP_VERSION = '2.3.2';
 const CALC_STORAGE_KEY = 'mxlab-reseller-calculator-v4';
 const CALC_HISTORY_KEY = 'mxlab-reseller-target-history-v1';
 const HUB_PREFS_KEY = 'mxlab-reseller-hub-prefs-v1';
@@ -1546,7 +1546,7 @@ function registerServiceWorker() {
   }
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('./sw.js?v=10', { updateViaCache: 'none' });
+      const registration = await navigator.serviceWorker.register('./sw.js?v=11', { updateViaCache: 'none' });
       elements.statusPill.textContent = navigator.onLine ? 'Offline pronto' : 'Modalità offline';
       let refreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
