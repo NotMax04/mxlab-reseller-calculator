@@ -1,97 +1,40 @@
-# MXLAB Price Calculator
+# Prezzi MXLAB
 
-Web app gratuita e installabile su iPhone che applica le formule ufficiali del progetto MXLAB a uno o più Prezzi Target.
+Web app gratuita, installabile e utilizzabile offline per calcolare i prezzi multipiattaforma del progetto MXLAB.
 
-## Funzioni
+## Funzioni principali
 
-- uno o più Prezzi Target, inseriti uno per riga;
+- calcolo immediato da un Prezzo Target;
+- confronto tra più target;
+- target rapidi e pulsanti ±1 / ±5;
 - prezzi per Vinted, Wallapop, eBay, Subito, Facebook Marketplace, Vestiaire Collective, Depop, Depop con boost e Grailed;
-- minimi accettabili per eBay, Depop, Depop con boost e Grailed;
-- offerte automatiche per eBay, Depop e Depop con boost;
-- spedizione eBay modificabile, con minimo obbligatorio di 5,35 euro;
-- cambio Grailed fisso: 1 euro = 1,138 dollari;
-- copia dei risultati nel formato ufficiale MXLAB;
-- salvataggio locale dei dati;
-- PWA utilizzabile offline;
-- nessun account, server, database o API.
+- minimi accettabili e offerte automatiche;
+- copia di un singolo prezzo, di una scheda o di tutti i risultati;
+- condivisione tramite il menu nativo di iPhone;
+- cronologia locale degli ultimi target;
+- filtro Prezzi / Minimi / Offerte;
+- tema chiaro e scuro;
+- spedizione eBay personalizzabile, minimo 5,35 euro;
+- dati salvati esclusivamente sul dispositivo;
+- PWA con funzionamento offline e cache aggiornabile.
 
-## Regole incorporate
+## Pubblicazione su GitHub Pages
 
-Le formule, le percentuali e il cambio sono fissi nel codice e non vengono aggiornati automaticamente.
+Carica tutti i file nella cartella principale del repository. In `Settings > Pages` usa:
 
-### Vinted e Wallapop
-
-```text
-V = R90(T × 1,20 + 1)
-```
-
-### Subito e Facebook Marketplace
-
-```text
-S = INT(T × 1,20 + 1)
-```
-
-### Vestiaire Collective
-
-```text
-Vestiaire = INT(V + 15)
-```
-
-### eBay
-
-```text
-E = C90(((V + SPe + 0,35) ÷ 0,8157) − SPe)
-Emin = C90(((T + SPe + 0,35) ÷ 0,8157) − SPe)
-Eoff = R90(E × 0,93), limitata tra Emin ed E
-```
-
-### Depop
-
-```text
-D = C90(V × 1,155 + 1,45)
-Dmin = V
-Doff = R90(D × 0,93), limitata tra Dmin e D
-```
-
-### Depop con boost
-
-```text
-DB = C90(V × 1,272 + 2,20)
-DBmin = C90(V × 1,06 + 1)
-DBoff = R90(DB × 0,93), limitata tra DBmin e DB
-```
-
-### Grailed
-
-```text
-G = SUP(((((V × 1,138) + 20 + 0,49) ÷ 0,8901) − 20))
-Gmin = SUP(((((T × 1,138) + 20 + 0,49) ÷ 0,8901) − 20))
-```
-
-## Pubblicazione gratuita con GitHub Pages
-
-1. Crea un repository pubblico chiamato `mxlab-reseller-calculator`.
-2. Carica tutti i file direttamente nella cartella principale del repository.
-3. Apri `Settings`, poi `Pages`.
-4. In `Build and deployment`, scegli `Deploy from a branch`.
-5. Seleziona `main` e `/ (root)`.
-6. Salva.
+- Source: `Deploy from a branch`
+- Branch: `main`
+- Folder: `/ (root)`
 
 ## Installazione su iPhone
 
-1. Apri il sito con Safari.
-2. Premi Condividi.
-3. Seleziona `Aggiungi alla schermata Home`.
+Apri il sito in Safari, premi Condividi e scegli `Aggiungi alla schermata Home`.
 
 ## Test
 
 ```bash
 npm test
 ```
-
-## Privacy
-
-I dati vengono salvati esclusivamente nel `localStorage` del browser.
 
 ## Licenza
 
