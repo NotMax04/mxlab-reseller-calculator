@@ -1,4 +1,4 @@
-# MXLAB Reseller Hub v2.3
+# MXLAB Reseller Hub v2.3.1
 
 App web installabile su iPhone per gestire il progetto MXLAB.
 
@@ -50,3 +50,11 @@ Caricare tutti i file nella radice del repository GitHub Pages.
 - Campi focalizzati mantenuti visibili senza spostare l’intera schermata.
 - Tastiera chiusa prima del passaggio alla schermata successiva.
 - Layout compatto automatico mentre la tastiera è aperta.
+
+
+## Correzione v2.3.1
+
+- Corretta la versione mostrata nella sezione Dati, rimasta erroneamente su Hub v2.2.
+- Versione visualizzata ora derivata automaticamente da APP_VERSION.
+- Aggiornamento PWA forzato con updateViaCache disabilitato e ricaricamento al cambio del service worker.
+- Aggiornati i parametri anti-cache delle risorse alla revisione 10.

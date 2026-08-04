@@ -21,7 +21,7 @@ import {
   safeNumber,
 } from './inventory.js';
 
-const APP_VERSION = '2.3.0';
+const APP_VERSION = '2.3.1';
 const CALC_STORAGE_KEY = 'mxlab-reseller-calculator-v4';
 const CALC_HISTORY_KEY = 'mxlab-reseller-target-history-v1';
 const HUB_PREFS_KEY = 'mxlab-reseller-hub-prefs-v1';
@@ -94,6 +94,7 @@ const elements = {
   calculatorAdvanced: document.getElementById('calculatorAdvancedSettings'),
   calculatorSettingsButton: document.getElementById('calculatorSettingsButton'),
   statusPill: document.getElementById('statusPill'),
+  appVersionLabel: document.getElementById('appVersionLabel'),
   inventorySearch: document.getElementById('inventorySearch'),
   inventoryStatusFilters: document.getElementById('inventoryStatusFilters'),
   inventorySort: document.getElementById('inventorySort'),
@@ -1545,9 +1546,15 @@ function registerServiceWorker() {
   }
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('./sw.js?v=9');
+      const registration = await navigator.serviceWorker.register('./sw.js?v=10', { updateViaCache: 'none' });
       elements.statusPill.textContent = navigator.onLine ? 'Offline pronto' : 'Modalità offline';
-      registration.update();
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+      });
+      await registration.update();
     } catch {
       elements.statusPill.textContent = 'Solo online';
     }
@@ -1557,6 +1564,7 @@ function registerServiceWorker() {
 }
 
 function initialize() {
+  if (elements.appVersionLabel) elements.appVersionLabel.textContent = `Hub v${APP_VERSION}`;
   ensureGoogleMigration();
   applyDataQualityRepairs({ silent: true });
   applyTheme();
