@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#111318" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="MXLAB Prezzi" />
+    <meta name="description" content="Calcolatore ufficiale dei prezzi MXLAB." />
+    <title>MXLAB Price Calculator</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./icon-192.png" />
+    <link rel="icon" type="image/png" href="./icon-192.png" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">MXLAB</p>
+          <h1>Price Calculator</h1>
+          <p class="subtitle">Calcolatore ufficiale dei prezzi multipiattaforma.</p>
+        </div>
+      </header>
+
+      <main>
+        <section class="panel input-panel" aria-labelledby="input-title">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">Input</p>
+              <h2 id="input-title">Prezzo Target</h2>
+            </div>
+            <button class="text-button" id="resetButton" type="button">Ripristina</button>
+          </div>
+
+          <div class="input-grid">
+            <label class="field target-field">
+              <span>Target in euro, uno per riga</span>
+              <textarea id="targetsInput" inputmode="decimal" rows="3" autocomplete="off" spellcheck="false">15</textarea>
+            </label>
+
+            <label class="field">
+              <span>Spedizione eBay, minimo 5,35 €</span>
+              <div class="input-wrap">
+                <span class="prefix">€</span>
+                <input id="ebayShipping" inputmode="decimal" autocomplete="off" value="5,35" />
+              </div>
+            </label>
+          </div>
+        </section>
+
+        <section class="results-section" aria-labelledby="results-title">
+          <div class="section-heading results-heading">
+            <div>
+              <p class="section-kicker">Output</p>
+              <h2 id="results-title">Risultati</h2>
+            </div>
+            <button class="secondary-button" id="copyButton" type="button">Copia risultati</button>
+          </div>
+
+          <p id="emptyState" class="empty-state" hidden>Inserisci almeno un prezzo target valido.</p>
+          <div id="resultsContainer" class="results-container"></div>
+        </section>
+
+        <section class="panel install-panel">
+          <div>
+            <p class="section-kicker">iPhone</p>
+            <h2>Usalo come un’app</h2>
+            <p>Apri il sito in Safari, premi Condividi e seleziona “Aggiungi alla schermata Home”.</p>
+          </div>
+          <span class="offline-badge" id="offlineBadge">Pronto offline</span>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
