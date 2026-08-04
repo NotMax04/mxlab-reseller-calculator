@@ -273,7 +273,7 @@ button, input, select, textarea { font: inherit; }
 button { background: none; }
 select, textarea { color: var(--text); }
 .sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
-body.dialog-open { overflow: hidden; }
+body.dialog-open { overflow: hidden; overscroll-behavior: none; }
 .app-shell { padding-bottom: calc(168px + env(safe-area-inset-bottom)); }
 .view { animation: view-in 180ms ease; }
 @keyframes view-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
@@ -576,11 +576,17 @@ body.dialog-open { overflow: hidden; }
 
 /* MOBILE ITEM WIZARD + TARGET HISTORY */
 .item-wizard-dialog {
-  width: min(100%, 620px);
+  position: fixed;
+  inset: auto;
+  top: var(--app-vv-top, 0px);
+  left: var(--app-vv-left, 0px);
+  width: min(var(--app-vw, 100vw), 620px);
   height: var(--app-vh, 100dvh);
-  max-height: var(--app-vh, 100dvh);
-  margin: 0 auto;
+  max-height: none;
+  margin: 0;
+  transform: none;
   border-radius: 0;
+  contain: layout paint;
 }
 .item-wizard-content { height: 100%; max-height: none; overflow: hidden; }
 .item-wizard-header { min-height: calc(68px + env(safe-area-inset-top)); padding-top: max(10px, env(safe-area-inset-top)); }
@@ -628,8 +634,9 @@ body.dialog-open { overflow: hidden; }
   min-height: 0;
   overflow-y: auto;
   padding: 18px 15px 24px;
-  scroll-padding-top: 12px;
+  scroll-padding: 12px 0 18px;
   overscroll-behavior: contain;
+  overflow-anchor: none;
   -webkit-overflow-scrolling: touch;
 }
 .form-step { animation: form-step-in 150ms ease; }
@@ -759,11 +766,33 @@ body.dialog-open { overflow: hidden; }
 .target-history-row time { color: var(--muted); font-size: 0.64rem; }
 .target-history-row strong { font-size: 0.78rem; }
 
+
+:root.keyboard-open .item-wizard-header {
+  min-height: 54px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+:root.keyboard-open .wizard-progress { padding-block: 4px; }
+:root.keyboard-open .wizard-progress button { min-height: 32px; }
+:root.keyboard-open .step-intro { display: none; }
+:root.keyboard-open .wizard-body { padding-top: 10px; padding-bottom: 12px; }
+:root.keyboard-open .wizard-footer {
+  padding-top: 6px;
+  padding-bottom: max(6px, env(safe-area-inset-bottom));
+  box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.16);
+}
+:root.keyboard-open .wizard-footer button { min-height: 44px; }
+:root.keyboard-open .item-wizard-dialog,
+:root.keyboard-open .item-wizard-content { transition: none !important; }
+
 @media (min-width: 650px) {
   .item-wizard-dialog {
+    top: 50%;
+    left: 50%;
+    width: min(620px, calc(100vw - 32px));
     height: min(760px, 90dvh);
     max-height: min(760px, 90dvh);
-    margin: auto;
+    transform: translate(-50%, -50%);
     border-radius: 25px;
   }
 }

@@ -21,7 +21,7 @@ import {
   safeNumber,
 } from './inventory.js';
 
-const APP_VERSION = '2.2.0';
+const APP_VERSION = '2.3.0';
 const CALC_STORAGE_KEY = 'mxlab-reseller-calculator-v4';
 const CALC_HISTORY_KEY = 'mxlab-reseller-target-history-v1';
 const HUB_PREFS_KEY = 'mxlab-reseller-hub-prefs-v1';
@@ -121,6 +121,8 @@ let historyTimer;
 let activeTargetIndex = 0;
 let selectedItemId = null;
 let activeItemStep = 0;
+let lockedScrollY = 0;
+let viewportSyncFrame = 0;
 let calculator = loadCalculatorState();
 let prefs = loadPrefs();
 let history = loadHistory();
@@ -299,19 +301,49 @@ async function shareText(text, title = 'MXLAB') {
   await copyText(text, 'Condivisione non disponibile: copiato');
 }
 
+function lockPageScroll() {
+  if (document.body.classList.contains('dialog-open')) return;
+  lockedScrollY = Math.max(0, Math.round(window.scrollY || window.pageYOffset || 0));
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${lockedScrollY}px`;
+  document.body.style.left = '0';
+  document.body.style.right = '0';
+  document.body.style.width = '100%';
+  document.body.classList.add('dialog-open');
+}
+
+function unlockPageScroll() {
+  if (!document.body.classList.contains('dialog-open')) return;
+  document.body.classList.remove('dialog-open');
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.left = '';
+  document.body.style.right = '';
+  document.body.style.width = '';
+  window.scrollTo(0, lockedScrollY);
+}
+
+function dismissKeyboard() {
+  const active = document.activeElement;
+  if (active && /^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName)) active.blur();
+}
+
 function openDialog(dialog) {
   if (!dialog) return;
+  lockPageScroll();
   if (typeof dialog.showModal === 'function') dialog.showModal();
   else dialog.setAttribute('open', '');
-  document.body.classList.add('dialog-open');
+  syncAppViewport();
 }
 
 function closeDialog(dialog) {
   if (!dialog) return;
+  dismissKeyboard();
   if (typeof dialog.close === 'function') dialog.close();
   else dialog.removeAttribute('open');
   if (![elements.itemDialog, elements.itemActionsDialog, elements.targetDialog, elements.saleDialog, elements.installDialog].some((item) => item.open)) {
-    document.body.classList.remove('dialog-open');
+    unlockPageScroll();
+    document.documentElement.classList.remove('keyboard-open');
   }
 }
 
@@ -625,7 +657,7 @@ function openItemDialog(item = null, presetTarget = null) {
   }
   updateItemTargetPreview();
   openDialog(elements.itemDialog);
-  setItemStep(0, { focus: true });
+  setItemStep(0);
 }
 
 function suggestItemIdentity() {
@@ -1318,10 +1350,11 @@ function initializeEvents() {
   document.getElementById('itemBrand').addEventListener('input', () => { document.getElementById('itemBrand').dataset.auto = 'false'; });
   document.getElementById('itemCategory').addEventListener('change', () => { document.getElementById('itemCategory').dataset.auto = 'false'; });
   document.getElementById('itemTarget').addEventListener('input', updateItemTargetPreview);
-  document.getElementById('itemBackButton').addEventListener('click', () => setItemStep(activeItemStep - 1, { focus: true }));
+  document.getElementById('itemBackButton').addEventListener('click', () => { dismissKeyboard(); setItemStep(activeItemStep - 1); });
   document.getElementById('itemNextButton').addEventListener('click', () => {
     if (!validateItemStep(activeItemStep)) return;
-    setItemStep(activeItemStep + 1, { focus: true });
+    dismissKeyboard();
+    setItemStep(activeItemStep + 1);
   });
   document.getElementById('itemWizardProgress').addEventListener('click', (event) => {
     const button = event.target.closest('[data-item-step]');
@@ -1334,7 +1367,8 @@ function initializeEvents() {
         return;
       }
     }
-    setItemStep(requested, { focus: true });
+    dismissKeyboard();
+    setItemStep(requested);
   });
   document.getElementById('openFullCalculatorFromItem').addEventListener('click', () => {
     const target = normalizeTarget(document.getElementById('itemTarget').value);
@@ -1454,15 +1488,54 @@ function initializeEvents() {
   });
 }
 
+function applyAppViewport() {
+  viewportSyncFrame = 0;
+  const viewport = window.visualViewport;
+  const height = Math.round(viewport?.height || window.innerHeight);
+  const width = Math.round(viewport?.width || window.innerWidth);
+  const top = Math.round(viewport?.offsetTop || 0);
+  const left = Math.round(viewport?.offsetLeft || 0);
+  const keyboardOpen = Boolean(viewport && (window.innerHeight - viewport.height > 150));
+  const root = document.documentElement;
+  root.style.setProperty('--app-vh', `${height}px`);
+  root.style.setProperty('--app-vw', `${width}px`);
+  root.style.setProperty('--app-vv-top', `${top}px`);
+  root.style.setProperty('--app-vv-left', `${left}px`);
+  root.classList.toggle('keyboard-open', keyboardOpen && elements.itemDialog?.open);
+}
+
 function syncAppViewport() {
-  const height = Math.round(window.visualViewport?.height || window.innerHeight);
-  document.documentElement.style.setProperty('--app-vh', `${height}px`);
+  if (viewportSyncFrame) cancelAnimationFrame(viewportSyncFrame);
+  viewportSyncFrame = requestAnimationFrame(applyAppViewport);
+}
+
+function keepFocusedWizardFieldVisible(event) {
+  if (!elements.itemDialog?.open) return;
+  const field = event.target.closest('input, select, textarea');
+  const body = document.getElementById('itemWizardBody');
+  if (!field || !body || !body.contains(field)) return;
+  const alignField = () => {
+    if (document.activeElement !== field) return;
+    const fieldRect = field.getBoundingClientRect();
+    const bodyRect = body.getBoundingClientRect();
+    const margin = 14;
+    if (fieldRect.bottom > bodyRect.bottom - margin) {
+      body.scrollBy({ top: fieldRect.bottom - bodyRect.bottom + margin, behavior: 'smooth' });
+    } else if (fieldRect.top < bodyRect.top + margin) {
+      body.scrollBy({ top: fieldRect.top - bodyRect.top - margin, behavior: 'smooth' });
+    }
+  };
+  window.setTimeout(alignField, 80);
+  window.setTimeout(alignField, 320);
 }
 
 function registerViewportHandling() {
   syncAppViewport();
   window.addEventListener('resize', syncAppViewport, { passive: true });
+  window.addEventListener('orientationchange', syncAppViewport, { passive: true });
   window.visualViewport?.addEventListener('resize', syncAppViewport, { passive: true });
+  window.visualViewport?.addEventListener('scroll', syncAppViewport, { passive: true });
+  elements.itemDialog?.addEventListener('focusin', keepFocusedWizardFieldVisible);
 }
 
 function registerServiceWorker() {
@@ -1472,7 +1545,7 @@ function registerServiceWorker() {
   }
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('./sw.js?v=8');
+      const registration = await navigator.serviceWorker.register('./sw.js?v=9');
       elements.statusPill.textContent = navigator.onLine ? 'Offline pronto' : 'Modalità offline';
       registration.update();
     } catch {

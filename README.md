@@ -1,4 +1,4 @@
-# MXLAB Reseller Hub v2.2
+# MXLAB Reseller Hub v2.3
 
 App web installabile su iPhone per gestire il progetto MXLAB.
 
@@ -12,7 +12,7 @@ App web installabile su iPhone per gestire il progetto MXLAB.
 - Esportazione CSV e backup JSON
 - Funzionamento offline tramite PWA
 
-## Novità v2.2
+## Novità v2.3
 
 - Inserimento articolo diviso in tre passaggi stabili: Articolo, Acquisto e Vendita
 - Intestazione e pulsanti di navigazione fissi durante l'uso della tastiera su iPhone
@@ -40,3 +40,13 @@ npm test
 ## Pubblicazione
 
 Caricare tutti i file nella radice del repository GitHub Pages.
+
+
+## Correzione v2.3
+
+- Stabilizzato il modulo articolo quando si apre la tastiera su Safari iPhone.
+- Allineamento del modulo al Visual Viewport, inclusi gli spostamenti verticali di iOS.
+- Blocco dello scorrimento della pagina sottostante durante la compilazione.
+- Campi focalizzati mantenuti visibili senza spostare l’intera schermata.
+- Tastiera chiusa prima del passaggio alla schermata successiva.
+- Layout compatto automatico mentre la tastiera è aperta.
