@@ -11,6 +11,7 @@ import {
   inferBrandFromTitle,
   inferCategoryFromTitle,
   nextStatus,
+  normalizeTargetHistory,
 } from './inventory.js';
 
 test('genera codici progressivi', () => {
@@ -77,4 +78,20 @@ test('calcola i giorni in stock dalla ricezione quando presente', () => {
   });
   assert.equal(getSlowMovers([item], 15, '2026-08-04').length, 1);
   assert.equal(getSlowMovers([item], 16, '2026-08-04').length, 0);
+});
+
+
+test('inizializza lo storico target senza duplicazioni', () => {
+  const item = createInventoryItem({ brand: 'A', title: 'Polo', target: 15, createdAt: '2026-08-01T10:00:00.000Z' });
+  assert.deepEqual(item.targetHistory, [{ target: 15, date: '2026-08-01', kind: 'initial' }]);
+});
+
+test('preserva e normalizza lo storico delle modifiche target', () => {
+  const history = normalizeTargetHistory([
+    { target: '15,00', date: '2026-08-01', kind: 'initial' },
+    { target: 12, date: '2026-08-04', kind: 'change' },
+  ], 12, '2026-08-01');
+  assert.equal(history.length, 2);
+  assert.equal(history.at(-1).target, 12);
+  assert.equal(history.at(-1).kind, 'change');
 });

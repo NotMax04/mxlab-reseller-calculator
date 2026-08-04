@@ -90,12 +90,31 @@ export function createItemCode(items = []) {
   return `MX-${String(maximum + 1).padStart(4, '0')}`;
 }
 
+export function normalizeTargetHistory(value, currentTarget = 0, fallbackDate = localDateISO()) {
+  const entries = Array.isArray(value) ? value : [];
+  const normalized = entries
+    .filter((entry) => entry && typeof entry === 'object')
+    .map((entry) => ({
+      target: Math.max(0, roundMoney(entry.target)),
+      date: String(entry.date || fallbackDate).slice(0, 10),
+      kind: entry.kind === 'initial' ? 'initial' : 'change',
+    }))
+    .filter((entry) => entry.target > 0)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
+  if (!normalized.length && currentTarget > 0) {
+    normalized.push({ target: Math.max(0, roundMoney(currentTarget)), date: String(fallbackDate || localDateISO()).slice(0, 10), kind: 'initial' });
+  }
+  return normalized;
+}
+
 export function createInventoryItem(input, items = []) {
   const now = new Date().toISOString();
   const id = input.id || globalThis.crypto?.randomUUID?.() || `mx-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const status = ITEM_STATUSES[input.status] ? input.status : 'prep';
   const cost = Math.max(0, roundMoney(input.cost));
   const target = Math.max(0, roundMoney(input.target));
+  const targetHistory = normalizeTargetHistory(input.targetHistory, target, String(input.createdAt || now).slice(0, 10));
   const sale = input.sale && status === 'sold'
     ? {
         platform: String(input.sale.platform || 'Vinted'),
@@ -116,6 +135,7 @@ export function createInventoryItem(input, items = []) {
     condition: String(input.condition || 'Ottime').trim(),
     cost,
     target,
+    targetHistory,
     source: String(input.source || '').trim(),
     purchaseDate: input.purchaseDate || localDateISO(),
     receivedDate: input.receivedDate || '',
@@ -236,7 +256,7 @@ export function nextStatus(status) {
 export function inventoryToCsv(items) {
   const headers = [
     'Codice', 'Marca', 'Descrizione', 'Categoria', 'Taglia', 'Condizioni', 'Costo acquisto', 'Prezzo target',
-    'Fornitore', 'Data acquisto', 'Data ricezione', 'Stato', 'Piattaforme', 'Data vendita', 'Piattaforma vendita',
+    'Fornitore', 'Data acquisto', 'Data ricezione', 'Stato', 'Data vendita', 'Piattaforma vendita',
     'Prezzo vendita', 'Valuta vendita', 'Incasso netto', 'Profitto', 'Moltiplicatore', 'Giorni in stock', 'Note',
   ];
 
@@ -244,7 +264,7 @@ export function inventoryToCsv(items) {
   const rows = items.map((item) => [
     item.code, item.brand, item.title, item.category, item.size, item.condition,
     item.cost, item.target, item.source, item.purchaseDate, item.receivedDate || '', ITEM_STATUSES[item.status]?.label || item.status,
-    item.platforms.join(' | '), item.sale?.date || '', item.sale?.platform || '', item.sale?.price ?? '', item.sale?.currency || '', item.sale?.net ?? '',
+    item.sale?.date || '', item.sale?.platform || '', item.sale?.price ?? '', item.sale?.currency || '', item.sale?.net ?? '',
     getItemProfit(item) ?? '', getItemMultiplier(item) ?? '', daysInStock(item), item.notes,
   ]);
 

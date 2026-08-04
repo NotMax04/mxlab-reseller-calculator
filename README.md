@@ -1,6 +1,6 @@
-# MXLAB Reseller Hub v2.1
+# MXLAB Reseller Hub v2.2
 
-App web installabile su iPhone per il progetto MXLAB.
+App web installabile su iPhone per gestire il progetto MXLAB.
 
 ## Moduli
 
@@ -12,9 +12,24 @@ App web installabile su iPhone per il progetto MXLAB.
 - Esportazione CSV e backup JSON
 - Funzionamento offline tramite PWA
 
+## Novità v2.2
+
+- Inserimento articolo diviso in tre passaggi stabili: Articolo, Acquisto e Vendita
+- Intestazione e pulsanti di navigazione fissi durante l'uso della tastiera su iPhone
+- Altezza dell'interfaccia sincronizzata con la viewport mobile per ridurre salti e spostamenti
+- Rimozione della selezione manuale delle piattaforme di pubblicazione
+- La piattaforma viene richiesta soltanto quando si registra la vendita
+- Il target rappresenta sempre quanto si vuole ottenere, non il prezzo dell'annuncio
+- Aggiornamento rapido del target con pulsanti di ribasso
+- Ricalcolo immediato dei prezzi Vinted, eBay, Depop e Grailed
+- Storico automatico dei target e dei ribassi per ogni articolo
+- Memorizzazione dell'ultima piattaforma usata durante la registrazione di una vendita
+- Sincronizzazione automatica dell'incasso netto per le piattaforme senza trattenute dirette
+- Compatibilità con inventario e backup creati dalle versioni precedenti
+
 ## Importazione Google
 
-I dati del 4 agosto 2026 sono inclusi in `seed-data.js`. Al primo avvio su un dispositivo senza dati, l’importazione viene eseguita automaticamente. In seguito può essere ripetuta dalla sezione **Dati > Google Sheets** senza creare duplicati.
+I dati del 4 agosto 2026 sono inclusi in `seed-data.js`. Al primo avvio su un dispositivo senza dati, l'importazione viene eseguita automaticamente. In seguito può essere ripetuta dalla sezione **Dati > Google Sheets** senza creare duplicati.
 
 ## Test
 
@@ -25,11 +40,3 @@ npm test
 ## Pubblicazione
 
 Caricare tutti i file nella radice del repository GitHub Pages.
-
-## Correzioni dati v2.1
-
-- Compilazione automatica di marca e categoria dal nome dell’articolo quando riconoscibili.
-- Correzione delle marche mancanti negli articoli Modori importati.
-- Distinzione tra data di acquisto del lotto e data di ricezione.
-- Condizioni non presenti nel foglio indicate come `Non indicato`, senza inventare informazioni.
-- Riparazione automatica dei dati già salvati sul dispositivo, senza cancellare inventario o storico.

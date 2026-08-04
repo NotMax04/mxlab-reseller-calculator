@@ -21,7 +21,7 @@ import {
   safeNumber,
 } from './inventory.js';
 
-const APP_VERSION = '2.1.0';
+const APP_VERSION = '2.2.0';
 const CALC_STORAGE_KEY = 'mxlab-reseller-calculator-v4';
 const CALC_HISTORY_KEY = 'mxlab-reseller-target-history-v1';
 const HUB_PREFS_KEY = 'mxlab-reseller-hub-prefs-v1';
@@ -29,7 +29,7 @@ const INVENTORY_KEY = 'mxlab-reseller-hub-inventory-v1';
 const SALES_HISTORY_KEY = 'mxlab-reseller-hub-sales-history-v1';
 const BUSINESS_DATA_KEY = 'mxlab-reseller-hub-business-v1';
 const GOOGLE_MIGRATION_KEY = 'mxlab-google-migration-2026-08-04-v2';
-const DATA_REPAIR_KEY = 'mxlab-data-quality-repair-2026-08-04-v3';
+const DATA_REPAIR_KEY = 'mxlab-data-quality-repair-2026-08-04-v4';
 
 const DEFAULT_CALCULATOR = Object.freeze({
   targets: [15],
@@ -43,6 +43,7 @@ const DEFAULT_PREFS = Object.freeze({
   inventoryStatus: 'all',
   inventorySort: 'newest',
   historyPlatform: 'all',
+  lastSalePlatform: 'Vinted',
 });
 
 const platformMeta = Object.freeze({
@@ -56,6 +57,8 @@ const platformMeta = Object.freeze({
   depopBoost: { label: 'Depop con boost', badge: 'D+' },
   grailed: { label: 'Grailed', badge: 'G' },
 });
+
+const DIRECT_PAYOUT_PLATFORMS = Object.freeze(['Vinted', 'Wallapop', 'Subito', 'Facebook Marketplace']);
 
 const viewMeta = Object.freeze({
   calculator: { title: 'Calcolatore', subtitle: 'Prezzi pronti per ogni piattaforma.' },
@@ -105,6 +108,8 @@ const elements = {
   itemDialog: document.getElementById('itemDialog'),
   itemForm: document.getElementById('itemForm'),
   itemActionsDialog: document.getElementById('itemActionsDialog'),
+  targetDialog: document.getElementById('targetDialog'),
+  targetForm: document.getElementById('targetForm'),
   saleDialog: document.getElementById('saleDialog'),
   saleForm: document.getElementById('saleForm'),
   installDialog: document.getElementById('installDialog'),
@@ -115,6 +120,7 @@ let toastTimer;
 let historyTimer;
 let activeTargetIndex = 0;
 let selectedItemId = null;
+let activeItemStep = 0;
 let calculator = loadCalculatorState();
 let prefs = loadPrefs();
 let history = loadHistory();
@@ -172,6 +178,7 @@ function loadPrefs() {
     inventoryStatus: Object.hasOwn(ITEM_STATUSES, stored.inventoryStatus) || stored.inventoryStatus === 'all' ? stored.inventoryStatus : 'all',
     inventorySort: ['newest', 'oldest', 'target-desc', 'cost-desc', 'slowest'].includes(stored.inventorySort) ? stored.inventorySort : 'newest',
     historyPlatform: typeof stored.historyPlatform === 'string' ? stored.historyPlatform : 'all',
+    lastSalePlatform: SELLING_PLATFORMS.includes(stored.lastSalePlatform) ? stored.lastSalePlatform : 'Vinted',
   };
 }
 
@@ -303,7 +310,7 @@ function closeDialog(dialog) {
   if (!dialog) return;
   if (typeof dialog.close === 'function') dialog.close();
   else dialog.removeAttribute('open');
-  if (![elements.itemDialog, elements.itemActionsDialog, elements.saleDialog, elements.installDialog].some((item) => item.open)) {
+  if (![elements.itemDialog, elements.itemActionsDialog, elements.targetDialog, elements.saleDialog, elements.installDialog].some((item) => item.open)) {
     document.body.classList.remove('dialog-open');
   }
 }
@@ -522,13 +529,58 @@ function renderHistory() {
 }
 
 // INVENTORY
-function renderPlatformToggles(selected = []) {
-  const container = document.getElementById('itemPlatforms');
-  container.innerHTML = SELLING_PLATFORMS.map((platform) => `
-    <label class="platform-toggle">
-      <input type="checkbox" value="${escapeHtml(platform)}" ${selected.includes(platform) ? 'checked' : ''} />
-      <span>${escapeHtml(platform)}</span>
-    </label>`).join('');
+function setItemStep(step, { focus = false } = {}) {
+  const steps = [...document.querySelectorAll('[data-form-step]')];
+  activeItemStep = Math.max(0, Math.min(steps.length - 1, Number(step) || 0));
+  steps.forEach((section, index) => {
+    const active = index === activeItemStep;
+    section.hidden = !active;
+    section.classList.toggle('active', active);
+  });
+  document.querySelectorAll('[data-item-step]').forEach((button, index) => {
+    const active = index === activeItemStep;
+    const completed = index < activeItemStep;
+    button.classList.toggle('active', active);
+    button.classList.toggle('completed', completed);
+    button.setAttribute('aria-current', active ? 'step' : 'false');
+  });
+  document.getElementById('itemStepCounter').textContent = `${activeItemStep + 1} DI ${steps.length}`;
+  document.getElementById('itemBackButton').disabled = activeItemStep === 0;
+  document.getElementById('itemNextButton').hidden = activeItemStep === steps.length - 1;
+  document.getElementById('saveItemButton').hidden = activeItemStep !== steps.length - 1;
+  const body = document.getElementById('itemWizardBody');
+  if (body) body.scrollTop = 0;
+  if (focus) {
+    window.setTimeout(() => {
+      const field = steps[activeItemStep]?.querySelector('input:not([type="hidden"]), select, textarea');
+      field?.focus({ preventScroll: true });
+    }, 120);
+  }
+}
+
+function validateItemStep(step) {
+  const requiredByStep = [
+    ['itemTitle', 'itemBrand'],
+    ['itemCost'],
+    ['itemTarget'],
+  ];
+  for (const id of requiredByStep[step] || []) {
+    const input = document.getElementById(id);
+    if (!input || String(input.value || '').trim()) continue;
+    input.focus({ preventScroll: true });
+    input.reportValidity?.();
+    showToast(step === 0 ? 'Completa nome e marca' : step === 1 ? 'Inserisci il costo' : 'Inserisci il target');
+    return false;
+  }
+  if (step === 1 && normalizeTarget(document.getElementById('itemCost').value) == null) {
+    showToast('Costo non valido');
+    return false;
+  }
+  if (step === 2 && (normalizeTarget(document.getElementById('itemTarget').value) ?? 0) <= 0) {
+    showToast('Target non valido');
+    return false;
+  }
+  return true;
 }
 
 function resetItemForm() {
@@ -539,12 +591,12 @@ function resetItemForm() {
   document.getElementById('itemCategory').value = 'Altro';
   document.getElementById('itemCondition').value = 'Ottime';
   document.getElementById('itemPurchaseDate').value = localDateISO();
-  document.getElementById('itemReceivedDate').value = localDateISO();
+  document.getElementById('itemReceivedDate').value = '';
   document.getElementById('itemStatus').value = 'prep';
   document.getElementById('itemDialogTitle').textContent = 'Nuovo articolo';
   const identityHint = document.getElementById('identitySuggestionHint');
-  if (identityHint) identityHint.textContent = 'Scrivi prima il nome: marca e categoria vengono suggerite automaticamente quando riconoscibili.';
-  renderPlatformToggles([]);
+  if (identityHint) identityHint.textContent = 'Esempio: “Bermuda cargo Carhartt”.';
+  setItemStep(0);
   updateItemTargetPreview();
 }
 
@@ -552,8 +604,8 @@ function openItemDialog(item = null, presetTarget = null) {
   closeDialog(elements.itemActionsDialog);
   resetItemForm();
   if (item) {
-    document.getElementById('itemDialogTitle').textContent = `Modifica ${item.code}`;
-    document.getElementById('itemId').value = item.id;
+    document.getElementById('itemDialogTitle').textContent = item.code ? `Modifica ${item.code}` : 'Duplica articolo';
+    document.getElementById('itemId').value = item.id || '';
     document.getElementById('itemBrand').value = item.brand;
     document.getElementById('itemBrand').dataset.auto = 'false';
     document.getElementById('itemTitle').value = item.title;
@@ -562,19 +614,18 @@ function openItemDialog(item = null, presetTarget = null) {
     document.getElementById('itemSize').value = item.size;
     document.getElementById('itemCondition').value = item.condition;
     document.getElementById('itemCost').value = formatTarget(item.cost);
-    document.getElementById('itemTarget').value = formatTarget(item.target);
+    document.getElementById('itemTarget').value = item.target > 0 ? formatTarget(item.target) : '';
     document.getElementById('itemSource').value = item.source;
     document.getElementById('itemPurchaseDate').value = item.purchaseDate;
     document.getElementById('itemReceivedDate').value = item.receivedDate || '';
     document.getElementById('itemStatus').value = item.status;
     document.getElementById('itemNotes').value = item.notes;
-    renderPlatformToggles(item.platforms);
   } else if (presetTarget != null) {
     document.getElementById('itemTarget').value = formatTarget(presetTarget);
   }
   updateItemTargetPreview();
   openDialog(elements.itemDialog);
-  window.setTimeout(() => document.getElementById('itemTitle').focus(), 100);
+  setItemStep(0, { focus: true });
 }
 
 function suggestItemIdentity() {
@@ -588,7 +639,7 @@ function suggestItemIdentity() {
   const hint = document.getElementById('identitySuggestionHint');
   if (hint) {
     const suggestions = [brand, category].filter(Boolean);
-    hint.textContent = suggestions.length ? `Rilevato: ${suggestions.join(' · ')}` : 'Scrivi prima il nome: marca e categoria vengono suggerite automaticamente quando riconoscibili.';
+    hint.textContent = suggestions.length ? `Rilevato: ${suggestions.join(' · ')}` : 'Marca e categoria non riconosciute: compilale manualmente.';
   }
 }
 
@@ -596,17 +647,31 @@ function updateItemTargetPreview() {
   const target = normalizeTarget(document.getElementById('itemTarget').value);
   const preview = document.getElementById('itemTargetPreview');
   const value = preview.querySelector('strong');
-  if (target == null) {
+  if (target == null || target <= 0) {
     value.textContent = '—';
     return;
   }
   value.textContent = euroX90(calculateMXLABPrices(target, calculator.ebayShipping).prices.vinted);
 }
 
+function targetHistoryWithChange(existing, nextTarget) {
+  const currentHistory = Array.isArray(existing?.targetHistory) ? existing.targetHistory.map((entry) => ({ ...entry })) : [];
+  const previousTarget = roundMoney(existing?.target || 0);
+  const normalizedTarget = roundMoney(nextTarget || 0);
+  if (!existing || normalizedTarget <= 0) return currentHistory;
+  if (!currentHistory.length && previousTarget > 0) {
+    currentHistory.push({ target: previousTarget, date: String(existing.createdAt || localDateISO()).slice(0, 10), kind: 'initial' });
+  }
+  if (normalizedTarget !== previousTarget) {
+    currentHistory.push({ target: normalizedTarget, date: localDateISO(), kind: 'change' });
+  }
+  return currentHistory;
+}
+
 function collectItemForm() {
   const existingId = document.getElementById('itemId').value;
   const existing = inventory.find((item) => item.id === existingId);
-  const selectedPlatforms = [...document.querySelectorAll('#itemPlatforms input:checked')].map((input) => input.value);
+  const target = normalizeTarget(document.getElementById('itemTarget').value) ?? 0;
   return {
     ...(existing || {}),
     id: existingId || undefined,
@@ -616,12 +681,13 @@ function collectItemForm() {
     size: document.getElementById('itemSize').value,
     condition: document.getElementById('itemCondition').value,
     cost: document.getElementById('itemCost').value,
-    target: document.getElementById('itemTarget').value,
+    target,
+    targetHistory: targetHistoryWithChange(existing, target),
     source: document.getElementById('itemSource').value,
     purchaseDate: document.getElementById('itemPurchaseDate').value,
     receivedDate: document.getElementById('itemReceivedDate').value,
     status: document.getElementById('itemStatus').value,
-    platforms: selectedPlatforms,
+    platforms: existing?.platforms || [],
     notes: document.getElementById('itemNotes').value,
     sale: existing?.sale || null,
   };
@@ -630,16 +696,19 @@ function collectItemForm() {
 function inventoryCardMarkup(item) {
   const age = daysInStock(item);
   const status = ITEM_STATUSES[item.status];
-  const prices = calculateMXLABPrices(item.target, calculator.ebayShipping).prices;
+  const prices = item.target > 0 ? calculateMXLABPrices(item.target, calculator.ebayShipping).prices : null;
   const profit = getItemProfit(item);
   const multiplier = getItemMultiplier(item);
   const agingClass = item.status !== 'sold' && age >= 90 ? 'critical' : item.status !== 'sold' && age >= 60 ? 'warning' : item.status !== 'sold' && age >= 30 ? 'aging' : '';
-  const platformChips = item.platforms.slice(0, 3).map((platform) => `<span>${escapeHtml(platform)}</span>`).join('');
-  const extraPlatforms = item.platforms.length > 3 ? `<span>+${item.platforms.length - 3}</span>` : '';
   const provisional = item.costProvisional ? '<em class="provisional-badge">PROVVISORIO</em>' : '';
+  const history = Array.isArray(item.targetHistory) ? item.targetHistory : [];
+  const changes = Math.max(0, history.length - 1);
+  const lastChange = history.at(-1);
+  const sourceChips = [item.lotCode, item.source].filter(Boolean).slice(0, 2).map((value) => `<span>${escapeHtml(value)}</span>`).join('');
+  const revisionChip = changes > 0 ? `<span>${changes} ${changes === 1 ? 'ribasso' : 'modifiche prezzo'}</span>` : '';
   const soldMeta = item.status === 'sold' && item.sale
     ? `<div class="inventory-financial sold-financial"><span>Profitto ${provisional}<strong>${formatMoney(profit)}</strong></span><span>${multiplier ? `${formatTarget(multiplier)}×` : '—'}</span></div>`
-    : `<div class="inventory-financial"><span>Costo ${provisional}<strong>${formatMoney(item.cost)}</strong></span><span>${item.targetInferred ? 'Target stimato' : 'Target'} <strong>${item.target > 0 ? formatMoney(item.target) : 'Da inserire'}</strong></span><span>Vinted <strong>${item.target > 0 ? euroX90(prices.vinted) : '—'}</strong></span></div>`;
+    : `<div class="inventory-financial"><span>Costo ${provisional}<strong>${formatMoney(item.cost)}</strong></span><span>${item.targetInferred ? 'Target stimato' : 'Target attuale'} <strong>${item.target > 0 ? formatMoney(item.target) : 'Da inserire'}</strong></span><span>Vinted <strong>${prices ? euroX90(prices.vinted) : '—'}</strong></span></div>`;
 
   return `
     <article class="inventory-card ${item.status === 'sold' ? 'sold-card' : ''}" data-item-id="${item.id}">
@@ -657,8 +726,8 @@ function inventoryCardMarkup(item) {
         </div>
         ${soldMeta}
         <div class="inventory-card-bottom">
-          <div class="platform-chips">${item.lotCode ? `<span>${escapeHtml(item.lotCode)}</span>` : ''}${platformChips}${extraPlatforms || (!item.platforms.length ? '<span>Nessuna piattaforma</span>' : '')}</div>
-          <span class="age-label ${agingClass}">${item.status === 'sold' && item.sale?.date ? `Venduto in ${age}g` : item.status === 'sold' ? 'Data vendita assente' : `${age}g in stock`}</span>
+          <div class="platform-chips">${sourceChips}${revisionChip || (!sourceChips ? '<span>Pubblicazione standard</span>' : '')}</div>
+          <span class="age-label ${agingClass}">${item.status === 'sold' && item.sale?.date ? `Venduto in ${age}g` : item.status === 'sold' ? 'Data vendita assente' : lastChange && changes > 0 ? `Prezzo ${formatDate(lastChange.date)}` : `${age}g in stock`}</span>
         </div>
       </button>
       <button class="inventory-more" type="button" data-item-action="more" aria-label="Azioni per ${escapeHtml(item.code)}">•••</button>
@@ -733,6 +802,7 @@ function openItemActions(item) {
   advance.disabled = item.status === 'live' || item.status === 'sold';
   document.getElementById('advanceStatusLabel').textContent = advance.disabled ? 'Nessun passaggio successivo' : `Passa a “${ITEM_STATUSES[next].label}”`;
   document.getElementById('markSoldButton').disabled = item.status === 'sold';
+  document.getElementById('updateTargetButton').disabled = item.status === 'sold';
   openDialog(elements.itemActionsDialog);
 }
 
@@ -740,11 +810,68 @@ function selectedItem() {
   return inventory.find((item) => item.id === selectedItemId) || null;
 }
 
+function renderTargetUpdatePreview() {
+  const item = selectedItem();
+  if (!item) return;
+  const target = normalizeTarget(document.getElementById('newTargetInput').value);
+  const preview = document.getElementById('repricePreview');
+  if (target == null || target <= 0) {
+    preview.innerHTML = '<p>Inserisci un target valido.</p>';
+    return;
+  }
+  const model = calculateMXLABPrices(target, calculator.ebayShipping).prices;
+  preview.innerHTML = `
+    <article><span>Vinted</span><strong>${euroX90(model.vinted)}</strong></article>
+    <article><span>eBay</span><strong>${euroX90(model.ebay)}</strong></article>
+    <article><span>Depop</span><strong>${euroX90(model.depop)}</strong></article>
+    <article><span>Grailed</span><strong>${dollarWhole(model.grailed)}</strong></article>`;
+}
+
+function renderTargetHistory(item) {
+  const list = document.getElementById('targetHistoryList');
+  const section = document.getElementById('targetHistorySection');
+  const history = Array.isArray(item?.targetHistory) ? [...item.targetHistory].reverse() : [];
+  const changes = Math.max(0, history.length - 1);
+  document.getElementById('targetHistoryCount').textContent = `${changes} ${changes === 1 ? 'modifica' : 'modifiche'}`;
+  section.hidden = history.length === 0;
+  list.innerHTML = history.map((entry, index) => `
+    <div class="target-history-row">
+      <span>${index === history.length - 1 ? 'Iniziale' : index === 0 ? 'Attuale' : 'Modifica'}</span>
+      <strong>${formatMoney(entry.target)}</strong>
+      <time>${formatDate(entry.date)}</time>
+    </div>`).join('');
+}
+
+function openTargetDialog(item) {
+  if (!item || item.status === 'sold') return;
+  closeDialog(elements.itemActionsDialog);
+  selectedItemId = item.id;
+  document.getElementById('currentTargetLabel').textContent = item.target > 0 ? formatMoney(item.target) : 'Non impostato';
+  document.getElementById('newTargetInput').value = item.target > 0 ? formatTarget(item.target) : '';
+  renderTargetUpdatePreview();
+  renderTargetHistory(item);
+  openDialog(elements.targetDialog);
+  window.setTimeout(() => document.getElementById('newTargetInput').focus({ preventScroll: true }), 100);
+}
+
+function saveUpdatedTarget(item, target) {
+  if (!item || target == null || target <= 0) return false;
+  const normalized = roundMoney(target);
+  if (normalized === roundMoney(item.target)) return false;
+  item.targetHistory = targetHistoryWithChange(item, normalized);
+  item.target = normalized;
+  item.targetInferred = false;
+  item.targetSource = 'manual';
+  item.lastPriceDrop = localDateISO();
+  item.updatedAt = new Date().toISOString();
+  return true;
+}
+
 function openSaleDialog(item) {
   if (!item) return;
   closeDialog(elements.itemActionsDialog);
   selectedItemId = item.id;
-  document.getElementById('salePlatform').value = item.platforms[0] || 'Vinted';
+  document.getElementById('salePlatform').value = prefs.lastSalePlatform || 'Vinted';
   syncSaleCurrencyAndPrice(true);
   document.getElementById('saleNet').value = formatTarget(item.target);
   document.getElementById('saleDate').value = localDateISO();
@@ -925,17 +1052,25 @@ function applyDataQualityRepairs({ force = false, silent = true } = {}) {
   const seeds = new Map((GOOGLE_MIGRATION.inventory || []).map((item) => [String(item.code).toLowerCase(), item]));
   let repaired = 0;
   inventory = inventory.map((current) => {
+    const patch = {};
+    if (current.target > 0 && (!Array.isArray(current.targetHistory) || current.targetHistory.length === 0)) {
+      patch.targetHistory = [{
+        target: roundMoney(current.target),
+        date: String(current.createdAt || current.purchaseDate || localDateISO()).slice(0, 10),
+        kind: 'initial',
+      }];
+    }
+
     const seed = seeds.get(String(current.code).toLowerCase());
     const importedItem = String(current.id || '').startsWith('google-') || current.lotCode === 'MOD-0001';
-    if (!seed || !importedItem) return current;
-
-    const patch = {};
-    if (isPlaceholderBrand(current.brand) && !isPlaceholderBrand(seed.brand)) patch.brand = seed.brand;
-    if ((!current.category || current.category === 'Altro') && seed.category && seed.category !== 'Altro') patch.category = seed.category;
-    if ((!current.condition || current.condition === 'Ottime') && seed.condition && seed.condition !== 'Ottime') patch.condition = seed.condition;
-    if (current.purchaseDate === '2026-07-20' && seed.purchaseDate) patch.purchaseDate = seed.purchaseDate;
-    if (!current.receivedDate && seed.receivedDate) patch.receivedDate = seed.receivedDate;
-    if ((current.migrationRevision || 0) < (seed.migrationRevision || 0)) patch.migrationRevision = seed.migrationRevision;
+    if (seed && importedItem) {
+      if (isPlaceholderBrand(current.brand) && !isPlaceholderBrand(seed.brand)) patch.brand = seed.brand;
+      if ((!current.category || current.category === 'Altro') && seed.category && seed.category !== 'Altro') patch.category = seed.category;
+      if ((!current.condition || current.condition === 'Ottime') && seed.condition && seed.condition !== 'Ottime') patch.condition = seed.condition;
+      if (current.purchaseDate === '2026-07-20' && seed.purchaseDate) patch.purchaseDate = seed.purchaseDate;
+      if (!current.receivedDate && seed.receivedDate) patch.receivedDate = seed.receivedDate;
+      if ((current.migrationRevision || 0) < (seed.migrationRevision || 0)) patch.migrationRevision = seed.migrationRevision;
+    }
 
     if (!Object.keys(patch).length) return current;
     repaired += 1;
@@ -1183,6 +1318,24 @@ function initializeEvents() {
   document.getElementById('itemBrand').addEventListener('input', () => { document.getElementById('itemBrand').dataset.auto = 'false'; });
   document.getElementById('itemCategory').addEventListener('change', () => { document.getElementById('itemCategory').dataset.auto = 'false'; });
   document.getElementById('itemTarget').addEventListener('input', updateItemTargetPreview);
+  document.getElementById('itemBackButton').addEventListener('click', () => setItemStep(activeItemStep - 1, { focus: true }));
+  document.getElementById('itemNextButton').addEventListener('click', () => {
+    if (!validateItemStep(activeItemStep)) return;
+    setItemStep(activeItemStep + 1, { focus: true });
+  });
+  document.getElementById('itemWizardProgress').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-item-step]');
+    if (!button) return;
+    const requested = Number(button.dataset.itemStep);
+    if (requested > activeItemStep) {
+      for (let step = activeItemStep; step < requested; step += 1) {
+        if (validateItemStep(step)) continue;
+        setItemStep(step);
+        return;
+      }
+    }
+    setItemStep(requested, { focus: true });
+  });
   document.getElementById('openFullCalculatorFromItem').addEventListener('click', () => {
     const target = normalizeTarget(document.getElementById('itemTarget').value);
     if (target == null) return showToast('Inserisci il target');
@@ -1190,6 +1343,11 @@ function initializeEvents() {
   });
   elements.itemForm.addEventListener('submit', (event) => {
     event.preventDefault();
+    for (let step = 0; step < 3; step += 1) {
+      if (validateItemStep(step)) continue;
+      setItemStep(step);
+      return;
+    }
     const payload = collectItemForm();
     if (!payload.brand.trim() || !payload.title.trim()) return showToast('Completa marca e descrizione');
     const existingIndex = inventory.findIndex((item) => item.id === payload.id);
@@ -1201,7 +1359,7 @@ function initializeEvents() {
 
   document.querySelectorAll('[data-close-dialog]').forEach((button) => button.addEventListener('click', () => closeDialog(document.getElementById(button.dataset.closeDialog))));
   document.querySelectorAll('dialog').forEach((dialog) => dialog.addEventListener('close', () => {
-    if (![elements.itemDialog, elements.itemActionsDialog, elements.saleDialog, elements.installDialog].some((item) => item.open)) document.body.classList.remove('dialog-open');
+    if (![elements.itemDialog, elements.itemActionsDialog, elements.targetDialog, elements.saleDialog, elements.installDialog].some((item) => item.open)) document.body.classList.remove('dialog-open');
   }));
 
   document.getElementById('advanceStatusButton').addEventListener('click', () => {
@@ -1211,6 +1369,7 @@ function initializeEvents() {
   });
   document.getElementById('markSoldButton').addEventListener('click', () => openSaleDialog(selectedItem()));
   document.getElementById('editItemButton').addEventListener('click', () => openItemDialog(selectedItem()));
+  document.getElementById('updateTargetButton').addEventListener('click', () => openTargetDialog(selectedItem()));
   document.getElementById('duplicateItemButton').addEventListener('click', () => {
     const item = selectedItem(); if (!item) return;
     closeDialog(elements.itemActionsDialog);
@@ -1226,9 +1385,41 @@ function initializeEvents() {
     inventory = inventory.filter((entry) => entry.id !== item.id); saveInventory(); closeDialog(elements.itemActionsDialog); renderInventory(); renderDashboard(); showToast('Articolo eliminato');
   });
 
-  document.getElementById('salePlatform').addEventListener('change', () => { syncSaleCurrencyAndPrice(true); updateSalePreview(); });
+  document.getElementById('newTargetInput').addEventListener('input', renderTargetUpdatePreview);
+  document.querySelectorAll('[data-target-adjust]').forEach((button) => button.addEventListener('click', () => {
+    const input = document.getElementById('newTargetInput');
+    const current = normalizeTarget(input.value) ?? safeNumber(selectedItem()?.target, 0);
+    input.value = formatTarget(Math.max(0, current + Number(button.dataset.targetAdjust)));
+    renderTargetUpdatePreview();
+  }));
+  elements.targetForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const item = selectedItem();
+    const target = normalizeTarget(document.getElementById('newTargetInput').value);
+    if (!item || target == null || target <= 0) return showToast('Inserisci un target valido');
+    if (!saveUpdatedTarget(item, target)) {
+      closeDialog(elements.targetDialog);
+      return showToast('Target invariato');
+    }
+    saveInventory();
+    closeDialog(elements.targetDialog);
+    renderInventory();
+    renderDashboard();
+    showToast(`Nuovo target: ${formatMoney(target)}`);
+  });
+
+  document.getElementById('salePlatform').addEventListener('change', () => {
+    syncSaleCurrencyAndPrice(true);
+    const platform = document.getElementById('salePlatform').value;
+    document.getElementById('saleNet').value = DIRECT_PAYOUT_PLATFORMS.includes(platform)
+      ? document.getElementById('salePrice').value
+      : formatTarget(selectedItem()?.target || 0);
+    updateSalePreview();
+  });
   ['salePrice', 'saleNet'].forEach((id) => document.getElementById(id).addEventListener('input', () => {
-    if (id === 'salePrice' && document.activeElement?.id === 'salePrice') document.getElementById('saleNet').value = document.getElementById('salePrice').value;
+    if (id === 'salePrice' && document.activeElement?.id === 'salePrice' && DIRECT_PAYOUT_PLATFORMS.includes(document.getElementById('salePlatform').value)) {
+      document.getElementById('saleNet').value = document.getElementById('salePrice').value;
+    }
     updateSalePreview();
   }));
   elements.saleForm.addEventListener('submit', (event) => {
@@ -1242,7 +1433,8 @@ function initializeEvents() {
       date: document.getElementById('saleDate').value || localDateISO(),
       currency: document.getElementById('salePlatform').value === 'Grailed' ? 'USD' : 'EUR',
     };
-    if (!item.platforms.includes(item.sale.platform)) item.platforms.push(item.sale.platform);
+    prefs.lastSalePlatform = item.sale.platform;
+    savePrefs();
     item.updatedAt = new Date().toISOString();
     saveInventory(); closeDialog(elements.saleDialog); renderInventory(); renderDashboard(); showToast(`Vendita registrata: ${formatMoney(getItemProfit(item))} di profitto`);
   });
@@ -1262,6 +1454,17 @@ function initializeEvents() {
   });
 }
 
+function syncAppViewport() {
+  const height = Math.round(window.visualViewport?.height || window.innerHeight);
+  document.documentElement.style.setProperty('--app-vh', `${height}px`);
+}
+
+function registerViewportHandling() {
+  syncAppViewport();
+  window.addEventListener('resize', syncAppViewport, { passive: true });
+  window.visualViewport?.addEventListener('resize', syncAppViewport, { passive: true });
+}
+
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) {
     elements.statusPill.textContent = 'Solo online';
@@ -1269,7 +1472,7 @@ function registerServiceWorker() {
   }
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('./sw.js?v=7');
+      const registration = await navigator.serviceWorker.register('./sw.js?v=8');
       elements.statusPill.textContent = navigator.onLine ? 'Offline pronto' : 'Modalità offline';
       registration.update();
     } catch {
@@ -1284,6 +1487,7 @@ function initialize() {
   ensureGoogleMigration();
   applyDataQualityRepairs({ silent: true });
   applyTheme();
+  registerViewportHandling();
   populateSalePlatforms();
   renderTargetInputs();
   renderHistory();

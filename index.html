@@ -10,10 +10,10 @@
     <meta name="apple-mobile-web-app-title" content="MXLAB Hub" />
     <meta name="description" content="Calcolatore prezzi, inventario, storico vendite e dashboard operativa MXLAB." />
     <title>MXLAB Reseller Hub</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=7" />
-    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png?v=7" />
-    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png?v=7" />
-    <link rel="stylesheet" href="./styles.css?v=7" />
+    <link rel="manifest" href="./manifest.webmanifest?v=8" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png?v=8" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png?v=8" />
+    <link rel="stylesheet" href="./styles.css?v=8" />
   </head>
   <body>
     <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -22,7 +22,7 @@
     <div class="app-shell">
       <header class="topbar">
         <button class="brand" id="brandButton" type="button" aria-label="Apri dashboard">
-          <img class="brand-icon" src="./icon-192.png?v=7" alt="" width="48" height="48" />
+          <img class="brand-icon" src="./icon-192.png?v=8" alt="" width="48" height="48" />
           <div>
             <p class="eyebrow">MXLAB</p>
             <h1 id="pageTitle">Calcolatore</h1>
@@ -365,7 +365,7 @@
 
           <footer class="app-footer">
             <p>Formule ufficiali MXLAB · Dati salvati solo sul dispositivo</p>
-            <span>Hub v2.1</span>
+            <span>Hub v2.2</span>
           </footer>
         </section>
       </main>
@@ -394,23 +394,33 @@
       <button class="primary-button" id="copyCalculatorButton" type="button"><span aria-hidden="true">⧉</span> Copia tutto</button>
     </div>
 
-    <dialog class="sheet-dialog" id="itemDialog">
-      <form method="dialog" id="itemForm" class="sheet-content">
-        <header class="sheet-header">
+    <dialog class="sheet-dialog item-wizard-dialog" id="itemDialog">
+      <form method="dialog" id="itemForm" class="sheet-content item-wizard-content">
+        <header class="sheet-header item-wizard-header">
           <button class="sheet-close" type="button" data-close-dialog="itemDialog" aria-label="Chiudi">×</button>
           <div>
-            <p class="section-kicker">INVENTARIO</p>
+            <p class="section-kicker">INVENTARIO · <span id="itemStepCounter">1 DI 3</span></p>
             <h2 id="itemDialogTitle">Nuovo articolo</h2>
           </div>
-          <button class="sheet-save" id="saveItemButton" type="submit">Salva</button>
+          <span class="wizard-saved" aria-hidden="true">●</span>
         </header>
 
-        <div class="sheet-body">
+        <nav class="wizard-progress" id="itemWizardProgress" aria-label="Passaggi inserimento articolo">
+          <button type="button" class="active" data-item-step="0"><span>1</span>Articolo</button>
+          <button type="button" data-item-step="1"><span>2</span>Acquisto</button>
+          <button type="button" data-item-step="2"><span>3</span>Vendita</button>
+        </nav>
+
+        <div class="sheet-body wizard-body" id="itemWizardBody">
           <input id="itemId" type="hidden" />
-          <section class="form-section">
-            <h3>Identità</h3>
-            <label class="field"><span>Descrizione breve *</span><input id="itemTitle" required autocomplete="off" placeholder="Bermuda cargo Carhartt" /></label>
-            <p class="field-hint" id="identitySuggestionHint">Scrivi prima il nome: marca e categoria vengono suggerite automaticamente quando riconoscibili.</p>
+
+          <section class="form-step active" data-form-step="0">
+            <div class="step-intro">
+              <span class="step-icon" aria-hidden="true">▧</span>
+              <div><h3>Identifica il capo</h3><p>Scrivi prima il nome: marca e categoria si compilano da sole quando riconoscibili.</p></div>
+            </div>
+            <label class="field focus-field"><span>Descrizione breve *</span><input id="itemTitle" required autocomplete="off" placeholder="Bermuda cargo Carhartt" /></label>
+            <p class="field-hint" id="identitySuggestionHint">Esempio: “Bermuda cargo Carhartt”.</p>
             <div class="form-grid two-cols">
               <label class="field"><span>Marca *</span><input id="itemBrand" required autocomplete="off" placeholder="Carhartt" /></label>
               <label class="field"><span>Categoria</span><select id="itemCategory">
@@ -426,36 +436,43 @@
             </div>
           </section>
 
-          <section class="form-section">
-            <h3>Numeri</h3>
-            <div class="form-grid two-cols">
-              <label class="field"><span>Costo acquisto *</span><div class="input-wrap form-money"><span class="prefix">€</span><input id="itemCost" required inputmode="decimal" placeholder="5" /></div></label>
-              <label class="field"><span>Prezzo target *</span><div class="input-wrap form-money"><span class="prefix">€</span><input id="itemTarget" required inputmode="decimal" placeholder="15" /></div></label>
+          <section class="form-step" data-form-step="1" hidden>
+            <div class="step-intro">
+              <span class="step-icon" aria-hidden="true">€</span>
+              <div><h3>Registra l’acquisto</h3><p>Servono pochi dati per calcolare capitale investito e profitto reale.</p></div>
             </div>
-            <div class="target-preview" id="itemTargetPreview">
-              <span>Prezzo Vinted</span><strong>—</strong><button type="button" id="openFullCalculatorFromItem">Vedi tutti</button>
-            </div>
-          </section>
-
-          <section class="form-section">
-            <h3>Provenienza</h3>
+            <label class="field focus-field"><span>Costo acquisto *</span><div class="input-wrap form-money large-money"><span class="prefix">€</span><input id="itemCost" required inputmode="decimal" placeholder="5" /></div></label>
+            <label class="field"><span>Fornitore o luogo</span><input id="itemSource" autocomplete="off" placeholder="Mercato Vimercate" /></label>
             <div class="form-grid two-cols">
-              <label class="field"><span>Fornitore o luogo</span><input id="itemSource" autocomplete="off" placeholder="Mercato Vimercate" /></label>
               <label class="field"><span>Data acquisto</span><input id="itemPurchaseDate" type="date" /></label>
+              <label class="field"><span>Data ricezione <small>(facoltativa)</small></span><input id="itemReceivedDate" type="date" /></label>
             </div>
-            <label class="field"><span>Data ricezione <small>(facoltativa)</small></span><input id="itemReceivedDate" type="date" /></label>
           </section>
 
-          <section class="form-section">
-            <h3>Workflow</h3>
-            <label class="field"><span>Stato</span><select id="itemStatus"><option value="prep">Da preparare</option><option value="photo">Da fotografare</option><option value="publish">Da pubblicare</option><option value="live">Pubblicato</option><option value="sold">Venduto</option></select></label>
-            <fieldset class="platform-fieldset">
-              <legend>Piattaforme pubblicate</legend>
-              <div id="itemPlatforms" class="platform-toggle-grid"></div>
-            </fieldset>
+          <section class="form-step" data-form-step="2" hidden>
+            <div class="step-intro">
+              <span class="step-icon" aria-hidden="true">⌗</span>
+              <div><h3>Imposta la vendita</h3><p>Inserisci solo quanto vuoi ottenere. Tutti i prezzi delle piattaforme vengono calcolati automaticamente.</p></div>
+            </div>
+            <label class="field focus-field"><span>Quanto vuoi ottenere *</span><div class="input-wrap form-money large-money"><span class="prefix">€</span><input id="itemTarget" required inputmode="decimal" placeholder="15" /></div></label>
+            <p class="field-hint">Questo è il target, non il prezzo dell’annuncio. Potrai aggiornarlo in un tocco quando vorrai ribassare.</p>
+            <div class="target-preview" id="itemTargetPreview">
+              <span>Prezzo Vinted calcolato</span><strong>—</strong><button type="button" id="openFullCalculatorFromItem">Vedi tutti</button>
+            </div>
+            <label class="field"><span>Stato</span><select id="itemStatus"><option value="prep">Da preparare</option><option value="photo">Da fotografare</option><option value="publish">Da pubblicare</option><option value="live">Pubblicato</option><option value="sold" disabled>Venduto — usa “Segna come venduto”</option></select></label>
+            <div class="implicit-platforms-note">
+              <span aria-hidden="true">✓</span>
+              <p><strong>Piattaforme automatiche</strong>Tutti i capi sono considerati pubblicati sui tuoi canali standard. Indicherai la piattaforma soltanto al momento della vendita.</p>
+            </div>
             <label class="field"><span>Note</span><textarea id="itemNotes" rows="3" placeholder="Difetti, misure o promemoria"></textarea></label>
           </section>
         </div>
+
+        <footer class="wizard-footer">
+          <button class="wizard-back" id="itemBackButton" type="button" disabled>Indietro</button>
+          <button class="wizard-next" id="itemNextButton" type="button">Continua</button>
+          <button class="wizard-save" id="saveItemButton" type="submit" hidden>Salva articolo</button>
+        </footer>
       </form>
     </dialog>
 
@@ -469,12 +486,38 @@
         <div class="sheet-body action-sheet-body">
           <button type="button" id="advanceStatusButton"><span>→</span><span><strong>Avanza nel workflow</strong><small id="advanceStatusLabel">Passa allo stato successivo</small></span></button>
           <button type="button" id="markSoldButton"><span>€</span><span><strong>Segna come venduto</strong><small>Registra incasso e profitto</small></span></button>
-          <button type="button" id="editItemButton"><span>✎</span><span><strong>Modifica articolo</strong><small>Aggiorna dati e prezzi</small></span></button>
+          <button type="button" id="editItemButton"><span>✎</span><span><strong>Modifica articolo</strong><small>Aggiorna i dati del capo</small></span></button>
+          <button type="button" id="updateTargetButton"><span>↘</span><span><strong>Aggiorna target</strong><small>Ribassa e ricalcola tutti i prezzi</small></span></button>
           <button type="button" id="duplicateItemButton"><span>⧉</span><span><strong>Duplica articolo</strong><small>Crea una copia modificabile</small></span></button>
           <button type="button" id="calculateItemButton"><span>⌗</span><span><strong>Apri nel calcolatore</strong><small>Usa il target di questo capo</small></span></button>
           <button class="danger-action" type="button" id="deleteItemButton"><span>×</span><span><strong>Elimina articolo</strong><small>Rimuove definitivamente la scheda</small></span></button>
         </div>
       </div>
+    </dialog>
+
+    <dialog class="sheet-dialog compact-dialog" id="targetDialog">
+      <form method="dialog" id="targetForm" class="sheet-content">
+        <header class="sheet-header">
+          <button class="sheet-close" type="button" data-close-dialog="targetDialog" aria-label="Chiudi">×</button>
+          <div><p class="section-kicker">PREZZI</p><h2>Aggiorna target</h2></div>
+          <button class="sheet-save" type="submit">Salva</button>
+        </header>
+        <div class="sheet-body target-update-body">
+          <div class="target-current-card"><span>Target attuale</span><strong id="currentTargetLabel">—</strong></div>
+          <label class="field"><span>Nuovo target</span><div class="input-wrap form-money large-money"><span class="prefix">€</span><input id="newTargetInput" required inputmode="decimal" /></div></label>
+          <div class="target-adjust-grid" aria-label="Ribasso rapido">
+            <button type="button" data-target-adjust="-5">−5 €</button>
+            <button type="button" data-target-adjust="-2">−2 €</button>
+            <button type="button" data-target-adjust="-1">−1 €</button>
+            <button type="button" data-target-adjust="1">+1 €</button>
+          </div>
+          <div class="reprice-preview" id="repricePreview"></div>
+          <section class="target-history-section" id="targetHistorySection">
+            <div class="inline-heading"><h3>Storico target</h3><span id="targetHistoryCount">0 modifiche</span></div>
+            <div id="targetHistoryList" class="target-history-list"></div>
+          </section>
+        </div>
+      </form>
     </dialog>
 
     <dialog class="sheet-dialog compact-dialog" id="saleDialog">
@@ -525,6 +568,6 @@
       </div>
     </template>
 
-    <script type="module" src="./app.js?v=7"></script>
+    <script type="module" src="./app.js?v=8"></script>
   </body>
 </html>
