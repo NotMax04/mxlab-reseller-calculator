@@ -1,4 +1,4 @@
-# MXLAB Reseller Hub v3.2
+# MXLAB Reseller Hub v3.2.1
 
 App web installabile su iPhone per gestire inventario, prezzi, fotografie, generazione annunci e cross-listing MXLAB.
 
@@ -26,3 +26,11 @@ npm test
 ## Pubblicazione
 
 Caricare tutti i file nella radice del repository GitHub Pages.
+
+
+## Correzione v3.2.1
+
+- Wallapop viene aperto nel Safari reale tramite un collegamento dedicato, così usa la sessione web persistente anziché il contenitore isolato della PWA.
+- Rimosso il collegamento personalizzato non valido di Vestiaire Collective che causava l'errore iniziale.
+- Vestiaire viene aperto tramite il collegamento HTTPS ufficiale di vendita nello stesso gesto dell'utente, consentendo a iOS di gestirlo come Universal Link e aprire l'app quando supportato.
+- Nessuna modifica ai dati, alle fotografie, al generatore IA o alle formule dei prezzi.

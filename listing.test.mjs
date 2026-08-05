@@ -90,11 +90,14 @@ test('considera pronta la scheda con cinque foto e dati completi', () => {
   assert.equal(incomplete.ready, false);
 });
 
-test('configura i tentativi di apertura app per Facebook e Vestiaire', () => {
+test('configura l’apertura persistente di Wallapop e il link universale di Vestiaire', () => {
   assert.equal(getPlatform('facebook').appUrl, 'fb://marketplace/create');
   assert.equal(getPlatform('facebook').webUrl, 'https://www.facebook.com/marketplace/create/item');
-  assert.equal(getPlatform('vestiaire').appUrl, 'vestiairecollective://sell');
-  assert.match(getPlatform('vestiaire').webUrl, /vestiairecollective\.com\/sell/);
+  assert.equal(getPlatform('wallapop').launchMode, 'safari');
+  assert.match(getPlatform('wallapop').safariUrl, /^x-safari-https:\/\/it\.wallapop\.com\/app\/catalog\/upload$/);
+  assert.equal(getPlatform('vestiaire').launchMode, 'universal');
+  assert.equal(getPlatform('vestiaire').appUrl, undefined);
+  assert.match(getPlatform('vestiaire').universalUrl, /vestiairecollective\.com\/vendita-online-abbigliamento/);
 });
 
 test('crea la checklist di rimozione escludendo la piattaforma di vendita', () => {

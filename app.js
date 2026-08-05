@@ -49,7 +49,7 @@ import {
   safeNumber,
 } from './inventory.js';
 
-const APP_VERSION = '3.2.0';
+const APP_VERSION = '3.2.1';
 const CALC_STORAGE_KEY = 'mxlab-reseller-calculator-v4';
 const CALC_HISTORY_KEY = 'mxlab-reseller-target-history-v1';
 const HUB_PREFS_KEY = 'mxlab-reseller-hub-prefs-v1';
@@ -373,10 +373,37 @@ Inserisci inoltre nel campo dell’azione le variabili “Input rapido” e “A
   openDialog(elements.aiSetupDialog);
 }
 
+function navigateFromUserGesture(url, target = '_self') {
+  if (!url) return;
+  const link = document.createElement('a');
+  link.href = url;
+  link.target = target;
+  link.rel = 'noopener noreferrer';
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
 function launchPlatform(platform) {
   if (!platform) return;
+
+  // Wallapop: apri il Safari reale, non il browser incorporato della PWA.
+  // In questo modo viene usata la sessione persistente già salvata in Safari.
+  if (platform.launchMode === 'safari' && platform.safariUrl) {
+    navigateFromUserGesture(platform.safariUrl);
+    return;
+  }
+
+  // Vestiaire: il link HTTPS ufficiale viene aperto direttamente nel gesto dell'utente.
+  // iOS può quindi trattarlo come Universal Link e passare all'app senza il vecchio errore.
+  if (platform.launchMode === 'universal' && platform.universalUrl) {
+    navigateFromUserGesture(platform.universalUrl);
+    return;
+  }
+
   const fallback = () => {
-    if (platform.webUrl) window.open(platform.webUrl, '_blank', 'noopener');
+    if (platform.webUrl) navigateFromUserGesture(platform.webUrl, '_blank');
   };
 
   if (!platform.appUrl) {
@@ -395,7 +422,7 @@ function launchPlatform(platform) {
   }, 1100);
 
   // L'apertura deve essere nello stesso gesto utente per consentire a iOS di passare all'app nativa.
-  window.location.href = platform.appUrl;
+  navigateFromUserGesture(platform.appUrl);
 }
 
 async function shareText(text, title = 'MXLAB') {
@@ -2123,7 +2150,7 @@ function registerServiceWorker() {
   }
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('./sw.js?v=12', { updateViaCache: 'none' });
+      const registration = await navigator.serviceWorker.register('./sw.js?v=13', { updateViaCache: 'none' });
       elements.statusPill.textContent = navigator.onLine ? 'Offline pronto' : 'Modalità offline';
       let refreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {

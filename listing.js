@@ -11,7 +11,11 @@ const PLATFORM_DEFINITIONS = [
   },
   {
     id: 'wallapop', label: 'Wallapop', badge: 'W', currency: 'EUR',
+    // La PWA di iOS usa un contenitore separato da Safari. Forziamo quindi Safari reale,
+    // così la sessione web di Wallapop resta disponibile tra una pubblicazione e l'altra.
+    safariUrl: 'x-safari-https://it.wallapop.com/app/catalog/upload',
     webUrl: 'https://it.wallapop.com/app/catalog/upload',
+    launchMode: 'safari',
   },
   {
     id: 'subito', label: 'Subito', badge: 'S', currency: 'EUR',
@@ -24,8 +28,12 @@ const PLATFORM_DEFINITIONS = [
   },
   {
     id: 'vestiaire', label: 'Vestiaire Collective', badge: 'VC', currency: 'EUR',
-    appUrl: 'vestiairecollective://sell',
-    webUrl: 'https://it.vestiairecollective.com/sell/',
+    // Il vecchio schema personalizzato non è registrato dall'app iOS e produceva un errore.
+    // Usiamo il link ufficiale di vendita come Universal Link, nello stesso gesto dell'utente:
+    // se Vestiaire lo associa all'app, iOS apre direttamente l'app già autenticata.
+    universalUrl: 'https://it.vestiairecollective.com/vendita-online-abbigliamento/',
+    webUrl: 'https://it.vestiairecollective.com/vendita-online-abbigliamento/',
+    launchMode: 'universal',
   },
   {
     id: 'depop', label: 'Depop', badge: 'D', currency: 'EUR',
