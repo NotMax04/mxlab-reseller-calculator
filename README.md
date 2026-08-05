@@ -1,4 +1,4 @@
-# MXLAB Reseller Hub v3.4.0
+# MXLAB Reseller Hub v3.4.1
 
 PWA locale per iPhone che organizza il processo MXLAB nello stesso ordine operativo usato per creare e pubblicare gli annunci.
 
@@ -47,3 +47,12 @@ npm test
 ## Pubblicazione
 
 Caricare i file nella radice del repository GitHub Pages e pubblicare dalla branch `main`, cartella `/ (root)`.
+
+
+## Ricerca Vinted v3.4.1
+
+- usa `%20` per gli spazi: l’app Vinted non riceve più segni `+` letterali;
+- applica realmente categoria, brand, taglia, condizioni e colori quando riconosciuti;
+- mostra prima dell’apertura quali filtri sono applicati e quali no;
+- consente di correggere il reparto Donna/Uomo;
+- non applica materiali stimati o privi di etichetta composizione.

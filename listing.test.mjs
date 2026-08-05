@@ -2,19 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { calculateMXLABPrices } from './calculator.js';
 import {
-  buildVintedPriceAnalysisPrompt,
-  buildVintedSearchUrl,
   createRemovalChecklist,
   generateBaseDescription,
   generatePlatformContent,
   generateTitleVariants,
   getPlatform,
-  getPlatformState,
   getPublishPlan,
-  getVintedFilterSummary,
+  getVintedSearchPlan,
+  buildVintedSearchUrl,
   listingReadiness,
   normalizeListing,
-  setPlatformState,
 } from './listing.js';
 
 const item = {
@@ -128,27 +125,43 @@ test('usa i titoli generati dall’IA al posto delle proposte locali', () => {
 });
 
 
-test('prepara la ricerca Vinted e il prompt per analizzare la registrazione', () => {
-  const url = buildVintedSearchUrl(item);
-  assert.match(url, /^https:\/\/www\.vinted\.it\/catalog\?/);
-  const query = new URL(url).searchParams.get('search_text');
-  assert.match(query, /Carhartt/);
-  assert.match(query, /Bermuda cargo/);
-  const filters = getVintedFilterSummary(item);
-  assert.ok(filters.some((entry) => entry.label === 'Brand' && entry.value === 'Carhartt'));
-  const prompt = buildVintedPriceAnalysisPrompt(item);
-  assert.match(prompt, /più cuori/i);
-  assert.match(prompt, /Protezione acquisti/i);
-  assert.match(prompt, /PREZZO TARGET/i);
+test('apre Vinted senza più e con filtri reali per la blusa OVS del test', () => {
+  const ovs = {
+    brand: 'OVS',
+    title: 'Blusa catene e pois',
+    category: 'Bluse',
+    size: 'L',
+    condition: 'Ottime',
+    listing: {
+      generatedTitles: [
+        'OVS Donna Blusa Catene e Pois Nero Rosso Bianco L',
+        'OVS Blusa Catene Pois Donna L',
+        'OVS Donna Blusa Catene Pois Nero Rosso Bianco L',
+      ],
+      baseDescription: 'Materiale: Poliestere (Etichetta composizione assente)\nTaglia: L\nColore: Nero, Rosso, Bianco\nCondizioni: Ottime',
+    },
+  };
+  const plan = getVintedSearchPlan(ovs);
+  const url = buildVintedSearchUrl(ovs);
+  assert.equal(plan.query, 'catene pois');
+  assert.equal(plan.appliedCount, 6);
+  assert.match(url, /catalog\/1043-bluse\/brand\/7651-ovs/);
+  assert.match(url, /search_text=catene%20pois/);
+  assert.match(url, /size_ids%5B%5D=1398/);
+  assert.match(url, /status_ids%5B%5D=2/);
+  assert.match(url, /color_ids%5B%5D=1/);
+  assert.match(url, /color_ids%5B%5D=5/);
+  assert.match(url, /color_ids%5B%5D=12/);
+  assert.doesNotMatch(url, /\+/);
+  const material = plan.filters.find((filter) => filter.label === 'Materiale');
+  assert.equal(material.applied, false);
+  assert.match(material.reason, /composizione stimata/i);
 });
 
-test('gestisce separatamente piattaforme da fare, in bozza e online', () => {
-  const draftListing = setPlatformState(item, 'ebay', 'draft');
-  const draftItem = { ...item, listing: draftListing };
-  assert.equal(getPlatformState(draftItem, 'ebay'), 'draft');
-  assert.equal(draftListing.completedPlatforms.ebay, undefined);
-  const liveListing = setPlatformState(draftItem, 'ebay', 'live');
-  const liveItem = { ...item, listing: liveListing };
-  assert.equal(getPlatformState(liveItem, 'ebay'), 'live');
-  assert.equal(liveListing.completedPlatforms.ebay, true);
+test('chiede il reparto quando non può determinare la tabella taglie Vinted', () => {
+  const ambiguous = { brand: 'Nike', title: 'T-shirt logo', category: 'T-shirt', size: 'M', condition: 'Buone', listing: {} };
+  const plan = getVintedSearchPlan(ambiguous);
+  assert.equal(plan.gender, '');
+  assert.equal(plan.size, null);
+  assert.equal(plan.filters.find((filter) => filter.label === 'Reparto').applied, false);
 });

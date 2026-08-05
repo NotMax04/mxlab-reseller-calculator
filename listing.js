@@ -1,4 +1,5 @@
 import { isGeneratedTitleSet, normalizeGeneratedTitles } from './mxlab-ai.js';
+import { inferVintedGender, normalizeVintedKey, resolveVintedBrand, resolveVintedCategory, resolveVintedColors, resolveVintedCondition, resolveVintedSize } from './vinted-data.js';
 
 const PLATFORM_DEFINITIONS = [
   {
@@ -194,6 +195,7 @@ export function normalizeListing(value = {}) {
       : [],
     photoCount: Math.max(0, Math.trunc(Number(listing.photoCount) || 0)),
     vintedSearchQuery: String(listing.vintedSearchQuery || '').trim(),
+    vintedGender: ['women', 'men'].includes(listing.vintedGender) ? listing.vintedGender : '',
     vintedResearchStarted: Boolean(listing.vintedResearchStarted),
     vintedVideoReady: Boolean(listing.vintedVideoReady),
     vintedSuggestedTarget: Math.max(0, Number(String(listing.vintedSuggestedTarget ?? '').replace(',', '.')) || 0),
@@ -268,33 +270,161 @@ export function getUniversalTitle(item) {
 }
 
 
-export function getVintedSearchQuery(item) {
+function descriptionField(item, label) {
   const listing = normalizeListing(item?.listing);
-  if (listing.vintedSearchQuery) return listing.vintedSearchQuery;
-  const { brand, category, original } = baseIdentity(item);
-  const detail = original || words(item?.title) || category;
-  return uniqueParts([brand, detail]).join(' ') || getPreferredTitle(item);
+  return lineValue(listing.baseDescription || generateBaseDescription(item), label);
+}
+
+function isEstimatedMaterial(value) {
+  return /(etichetta composizione assente|composizione assente|stimata?|presunta?|ipotizzata?|sembra)/i.test(String(value || ''));
+}
+
+function sourceTextForVinted(item) {
+  const listing = normalizeListing(item?.listing);
+  return [
+    ...listing.generatedTitles,
+    item?.title,
+    item?.category,
+    listing.baseDescription,
+    listing.aiNotes,
+  ].filter(Boolean).join(' ');
+}
+
+function cleanVintedKeywords(item, context) {
+  const listing = normalizeListing(item?.listing);
+  const preferred = listing.vintedSearchQuery || listing.generatedTitles[0] || item?.title || '';
+  let tokens = normalizeVintedKey(preferred).split(' ').filter(Boolean);
+  const removals = new Set([
+    ...normalizeVintedKey(item?.brand).split(' '),
+    ...normalizeVintedKey(item?.category).split(' '),
+    ...normalizeVintedKey(item?.size).split(' '),
+    ...normalizeVintedKey(listing.color || descriptionField(item, 'Colore')).split(' '),
+    ...normalizeVintedKey(listing.material || descriptionField(item, 'Materiale')).split(' '),
+    'donna', 'uomo', 'women', 'woman', 'men', 'man', 'femme', 'homme', 'taglia',
+    'nuovo', 'nuova', 'con', 'senza', 'cartellino', 'ottime', 'buone', 'discrete',
+    'blusa', 'bluse', 'camicetta', 'camicette', 'camicia', 'camicie', 'polo', 'tshirt', 'maglietta', 'magliette', 'felpa', 'felpe', 'pantalone', 'pantaloni', 'pantaloncino', 'pantaloncini', 'shorts', 'bermuda', 'maglione', 'maglioni', 'piumino', 'piumini',
+    'e', 'da', 'di', 'del', 'della', 'the',
+  ].filter(Boolean));
+  if (context.category) {
+    normalizeVintedKey(context.category.label).split(' ').forEach((word) => removals.add(word));
+  }
+  tokens = tokens.filter((token) => !removals.has(token) && token.length > 1);
+  return [...new Set(tokens)].join(' ');
+}
+
+function encodeQueryComponent(value) {
+  return encodeURIComponent(String(value)).replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
+}
+
+function appendParam(parts, key, value) {
+  if (value === '' || value == null) return;
+  parts.push(`${encodeQueryComponent(key)}=${encodeQueryComponent(value)}`);
+}
+
+export function getVintedSearchPlan(item) {
+  const listing = normalizeListing(item?.listing);
+  const sourceText = sourceTextForVinted(item);
+  const gender = inferVintedGender(sourceText, listing.vintedGender);
+  const category = resolveVintedCategory(`${item?.category || ''} ${sourceText}`, gender);
+  const brand = resolveVintedBrand(item?.brand);
+  const sizeValue = words(item?.size) || descriptionField(item, 'Taglia');
+  const size = resolveVintedSize(sizeValue, gender);
+  const conditionValue = words(item?.condition) || descriptionField(item, 'Condizioni');
+  const condition = resolveVintedCondition(conditionValue);
+  const colorValue = listing.color || descriptionField(item, 'Colore');
+  const colors = resolveVintedColors(colorValue);
+  const materialValue = listing.material || descriptionField(item, 'Materiale');
+  const estimatedMaterial = isEstimatedMaterial(materialValue);
+  const query = cleanVintedKeywords(item, { category, brand, size, condition, colors, gender });
+
+  const filters = [];
+  filters.push({
+    label: 'Reparto',
+    value: gender === 'women' ? 'Donna' : gender === 'men' ? 'Uomo' : 'Non riconosciuto',
+    applied: Boolean(gender),
+    reason: gender ? '' : 'Scegli Donna o Uomo prima di aprire Vinted.',
+  });
+  filters.push({
+    label: 'Categoria',
+    value: category?.label || words(item?.category) || 'Non riconosciuta',
+    applied: Boolean(category),
+    reason: category?.broad ? 'Applicata come categoria ampia.' : category ? '' : 'Categoria non mappata automaticamente.',
+  });
+  filters.push({
+    label: 'Brand',
+    value: words(item?.brand) || 'Non indicato',
+    applied: Boolean(brand),
+    reason: brand ? '' : 'Brand non mappato: resta nelle parole chiave.',
+  });
+  filters.push({
+    label: 'Taglia',
+    value: sizeValue || 'Non indicata',
+    applied: Boolean(size),
+    reason: size ? '' : gender ? 'Taglia non mappata automaticamente.' : 'Serve prima il reparto.',
+  });
+  filters.push({
+    label: 'Condizioni',
+    value: conditionValue || 'Non indicate',
+    applied: Boolean(condition),
+    reason: condition ? '' : 'Condizione non mappata automaticamente.',
+  });
+  filters.push({
+    label: 'Colore',
+    value: colorValue || 'Non indicato',
+    applied: colors.length > 0,
+    reason: colors.length ? '' : 'Colore non mappato automaticamente.',
+  });
+  if (materialValue) {
+    filters.push({
+      label: 'Materiale',
+      value: materialValue,
+      applied: false,
+      reason: estimatedMaterial
+        ? 'Non applicato: composizione stimata o etichetta assente.'
+        : 'Non applicato in questa prova: manca un ID Vinted verificato.',
+    });
+  }
+
+  const pathParts = ['https://www.vinted.it/catalog'];
+  if (category) pathParts.push(`${category.id}-${category.slug}`);
+  if (brand) pathParts.push('brand', `${brand.id}-${brand.slug}`);
+  const params = [];
+  if (query) appendParam(params, 'search_text', query);
+  // Il percorso contiene già categoria e brand; i parametri duplicati rendono il filtro
+  // leggibile anche quando iOS converte il link in un'apertura dell'app Vinted.
+  if (category) appendParam(params, 'catalog[]', category.id);
+  if (brand) appendParam(params, 'brand_ids[]', brand.id);
+  if (size) appendParam(params, 'size_ids[]', size.id);
+  if (condition) appendParam(params, 'status_ids[]', condition.id);
+  colors.forEach((color) => appendParam(params, 'color_ids[]', color.id));
+  appendParam(params, 'order', 'relevance');
+
+  return {
+    query,
+    gender,
+    category,
+    brand,
+    size,
+    condition,
+    colors,
+    materialValue,
+    estimatedMaterial,
+    filters,
+    appliedCount: filters.filter((filter) => filter.applied).length,
+    url: `${pathParts.join('/')}${params.length ? `?${params.join('&')}` : ''}`,
+  };
+}
+
+export function getVintedSearchQuery(item) {
+  return getVintedSearchPlan(item).query;
 }
 
 export function buildVintedSearchUrl(item) {
-  const query = getVintedSearchQuery(item);
-  const params = new URLSearchParams();
-  if (query) params.set('search_text', query);
-  return `https://www.vinted.it/catalog${params.size ? `?${params.toString()}` : ''}`;
+  return getVintedSearchPlan(item).url;
 }
 
 export function getVintedFilterSummary(item) {
-  const listing = normalizeListing(item?.listing);
-  const description = listing.baseDescription || generateBaseDescription(item);
-  const filters = [
-    ['Categoria', words(item?.category)],
-    ['Brand', words(item?.brand)],
-    ['Taglia', words(item?.size) || lineValue(description, 'Taglia')],
-    ['Condizioni', words(item?.condition) || lineValue(description, 'Condizioni')],
-    ['Colore', listing.color || lineValue(description, 'Colore')],
-    ['Materiale', listing.material || lineValue(description, 'Materiale')],
-  ];
-  return filters.filter(([, value]) => Boolean(value)).map(([label, value]) => ({ label, value }));
+  return getVintedSearchPlan(item).filters;
 }
 
 export function buildVintedPriceAnalysisPrompt(item) {
