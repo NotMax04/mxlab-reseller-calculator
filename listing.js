@@ -303,7 +303,7 @@ function cleanVintedKeywords(item, context) {
     'donna', 'uomo', 'women', 'woman', 'men', 'man', 'femme', 'homme', 'taglia',
     'nuovo', 'nuova', 'con', 'senza', 'cartellino', 'ottime', 'buone', 'discrete',
     'blusa', 'bluse', 'camicetta', 'camicette', 'camicia', 'camicie', 'polo', 'tshirt', 'maglietta', 'magliette', 'felpa', 'felpe', 'pantalone', 'pantaloni', 'pantaloncino', 'pantaloncini', 'shorts', 'bermuda', 'maglione', 'maglioni', 'piumino', 'piumini',
-    'e', 'da', 'di', 'del', 'della', 'the',
+    'fantasia', 'motivo', 'pattern', 'e', 'da', 'di', 'del', 'della', 'the',
   ].filter(Boolean));
   if (context.category) {
     normalizeVintedKey(context.category.label).split(' ').forEach((word) => removals.add(word));
@@ -318,7 +318,8 @@ function encodeQueryComponent(value) {
 
 function appendParam(parts, key, value) {
   if (value === '' || value == null) return;
-  parts.push(`${encodeQueryComponent(key)}=${encodeQueryComponent(value)}`);
+  const encodedKey = encodeQueryComponent(key).replace(/%5B%5D/gi, '[]');
+  parts.push(`${encodedKey}=${encodeQueryComponent(value)}`);
 }
 
 export function getVintedSearchPlan(item) {
@@ -410,8 +411,9 @@ export function getVintedSearchPlan(item) {
     materialValue,
     estimatedMaterial,
     filters,
-    appliedCount: filters.filter((filter) => filter.applied).length,
+    appliedCount: filters.filter((filter) => filter.applied && !['Reparto', 'Materiale'].includes(filter.label)).length,
     url: `${pathParts.join('/')}${params.length ? `?${params.join('&')}` : ''}`,
+    safariUrl: `x-safari-${pathParts.join('/')}${params.length ? `?${params.join('&')}` : ''}`,
   };
 }
 

@@ -1,4 +1,4 @@
-# MXLAB Reseller Hub v3.4.1
+# MXLAB Reseller Hub v3.4.2
 
 PWA locale per iPhone che organizza il processo MXLAB nello stesso ordine operativo usato per creare e pubblicare gli annunci.
 
@@ -49,10 +49,15 @@ npm test
 Caricare i file nella radice del repository GitHub Pages e pubblicare dalla branch `main`, cartella `/ (root)`.
 
 
-## Ricerca Vinted v3.4.1
+## Ricerca Vinted v3.4.2
 
 - usa `%20` per gli spazi: l’app Vinted non riceve più segni `+` letterali;
 - applica realmente categoria, brand, taglia, condizioni e colori quando riconosciuti;
 - mostra prima dell’apertura quali filtri sono applicati e quali no;
 - consente di correggere il reparto Donna/Uomo;
 - non applica materiali stimati o privi di etichetta composizione.
+
+
+### Correzione v3.4.2
+
+La ricerca comparabili viene forzata in Safari. L’app Vinted su iOS conservava categoria e brand dal percorso ma scartava taglia, condizioni e colori presenti nella query e mostrava gli spazi come segni `+`. Safari mantiene la ricerca testuale e tutti i parametri del catalogo. Il conteggio mostra soltanto i filtri effettivi del pannello Vinted, senza contare il reparto.

@@ -125,7 +125,7 @@ test('usa i titoli generati dall’IA al posto delle proposte locali', () => {
 });
 
 
-test('apre Vinted senza più e con filtri reali per la blusa OVS del test', () => {
+test('apre la ricerca Vinted in Safari senza più e con filtri reali per la blusa OVS del test', () => {
   const ovs = {
     brand: 'OVS',
     title: 'Blusa catene e pois',
@@ -144,15 +144,16 @@ test('apre Vinted senza più e con filtri reali per la blusa OVS del test', () =
   const plan = getVintedSearchPlan(ovs);
   const url = buildVintedSearchUrl(ovs);
   assert.equal(plan.query, 'catene pois');
-  assert.equal(plan.appliedCount, 6);
+  assert.equal(plan.appliedCount, 5);
   assert.match(url, /catalog\/1043-bluse\/brand\/7651-ovs/);
   assert.match(url, /search_text=catene%20pois/);
-  assert.match(url, /size_ids%5B%5D=1398/);
-  assert.match(url, /status_ids%5B%5D=2/);
-  assert.match(url, /color_ids%5B%5D=1/);
-  assert.match(url, /color_ids%5B%5D=5/);
-  assert.match(url, /color_ids%5B%5D=12/);
+  assert.match(url, /size_ids\[\]=1398/);
+  assert.match(url, /status_ids\[\]=2/);
+  assert.match(url, /color_ids\[\]=1/);
+  assert.match(url, /color_ids\[\]=5/);
+  assert.match(url, /color_ids\[\]=12/);
   assert.doesNotMatch(url, /\+/);
+  assert.match(plan.safariUrl, /^x-safari-https:\/\/www\.vinted\.it\/catalog/);
   const material = plan.filters.find((filter) => filter.label === 'Materiale');
   assert.equal(material.applied, false);
   assert.match(material.reason, /composizione stimata/i);
