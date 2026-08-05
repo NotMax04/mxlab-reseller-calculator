@@ -2,7 +2,7 @@
   "id": "./",
   "name": "MXLAB Reseller Hub",
   "short_name": "MXLAB Hub",
-  "description": "Calcolatore prezzi, inventario intelligente, storico vendite e dashboard operativa MXLAB.",
+  "description": "Calcolatore prezzi, inventario, generazione annunci con Apple Intelligence, cross-listing e dashboard MXLAB.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

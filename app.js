@@ -1,4 +1,10 @@
 import { MIN_EBAY_SHIPPING, calculateMXLABPrices } from './calculator.js';
+import {
+  MXLAB_SHORTCUT_NAME,
+  MXLAB_SHORTCUT_PROMPT,
+  buildMXLABAIInput,
+  parseMXLABAIOutput,
+} from './mxlab-ai.js';
 import { GOOGLE_MIGRATION } from './seed-data.js';
 import {
   PUBLISH_PLATFORMS,
@@ -6,6 +12,7 @@ import {
   formatListingText,
   generateBaseDescription,
   generatePlatformContent,
+  generateTitleVariants,
   getPlatform,
   getPublishPlan,
   listingReadiness,
@@ -42,7 +49,7 @@ import {
   safeNumber,
 } from './inventory.js';
 
-const APP_VERSION = '3.0.0';
+const APP_VERSION = '3.2.0';
 const CALC_STORAGE_KEY = 'mxlab-reseller-calculator-v4';
 const CALC_HISTORY_KEY = 'mxlab-reseller-target-history-v1';
 const HUB_PREFS_KEY = 'mxlab-reseller-hub-prefs-v1';
@@ -51,6 +58,7 @@ const SALES_HISTORY_KEY = 'mxlab-reseller-hub-sales-history-v1';
 const BUSINESS_DATA_KEY = 'mxlab-reseller-hub-business-v1';
 const GOOGLE_MIGRATION_KEY = 'mxlab-google-migration-2026-08-04-v2';
 const DATA_REPAIR_KEY = 'mxlab-data-quality-repair-2026-08-04-v4';
+const AI_SHORTCUT_CONFIG_KEY = 'mxlab-ai-shortcut-configured-v1';
 
 const DEFAULT_CALCULATOR = Object.freeze({
   targets: [15],
@@ -147,6 +155,7 @@ const elements = {
   listingPlatformCards: document.getElementById('listingPlatformCards'),
   removalDialog: document.getElementById('removalDialog'),
   removalChecklist: document.getElementById('removalChecklist'),
+  aiSetupDialog: document.getElementById('aiSetupDialog'),
   installDialog: document.getElementById('installDialog'),
   backupFileInput: document.getElementById('backupFileInput'),
 };
@@ -326,6 +335,69 @@ async function copyText(text, successMessage = 'Copiato') {
   showToast(successMessage);
 }
 
+async function readClipboardText() {
+  try {
+    return await navigator.clipboard.readText();
+  } catch {
+    return window.prompt('Incolla qui il risultato generato dal comando MXLAB Annuncio:', '') || '';
+  }
+}
+
+function isAiShortcutConfigured() {
+  try { return localStorage.getItem(AI_SHORTCUT_CONFIG_KEY) === '1'; } catch { return false; }
+}
+
+function setAiShortcutConfigured(configured) {
+  try { localStorage.setItem(AI_SHORTCUT_CONFIG_KEY, configured ? '1' : '0'); } catch { /* no-op */ }
+  updateAiShortcutStatus();
+}
+
+function updateAiShortcutStatus(message = '') {
+  const badge = document.getElementById('aiShortcutStatus');
+  const status = document.getElementById('aiGenerationStatus');
+  const configured = isAiShortcutConfigured();
+  if (badge) {
+    badge.textContent = configured ? 'Configurato' : 'Da configurare';
+    badge.classList.toggle('ready', configured);
+  }
+  if (status && message) status.textContent = message;
+}
+
+function openAiSetup() {
+  const prompt = document.getElementById('aiShortcutPrompt');
+  const checkbox = document.getElementById('aiShortcutConfiguredCheckbox');
+  if (prompt) prompt.value = `${MXLAB_SHORTCUT_PROMPT}
+
+Inserisci inoltre nel campo dell’azione le variabili “Input rapido” e “Appunti”.`;
+  if (checkbox) checkbox.checked = isAiShortcutConfigured();
+  openDialog(elements.aiSetupDialog);
+}
+
+function launchPlatform(platform) {
+  if (!platform) return;
+  const fallback = () => {
+    if (platform.webUrl) window.open(platform.webUrl, '_blank', 'noopener');
+  };
+
+  if (!platform.appUrl) {
+    fallback();
+    return;
+  }
+
+  let fallbackTimer;
+  const cancelFallback = () => {
+    if (document.visibilityState === 'hidden') window.clearTimeout(fallbackTimer);
+  };
+  document.addEventListener('visibilitychange', cancelFallback, { once: true });
+  fallbackTimer = window.setTimeout(() => {
+    document.removeEventListener('visibilitychange', cancelFallback);
+    if (document.visibilityState !== 'hidden') fallback();
+  }, 1100);
+
+  // L'apertura deve essere nello stesso gesto utente per consentire a iOS di passare all'app nativa.
+  window.location.href = platform.appUrl;
+}
+
 async function shareText(text, title = 'MXLAB') {
   if (!text) return;
   if (navigator.share) {
@@ -379,7 +451,7 @@ function closeDialog(dialog) {
   dismissKeyboard();
   if (typeof dialog.close === 'function') dialog.close();
   else dialog.removeAttribute('open');
-  if (![elements.itemDialog, elements.itemActionsDialog, elements.targetDialog, elements.saleDialog, elements.listingDialog, elements.removalDialog, elements.installDialog].some((item) => item.open)) {
+  if (![elements.itemDialog, elements.itemActionsDialog, elements.targetDialog, elements.saleDialog, elements.listingDialog, elements.removalDialog, elements.aiSetupDialog, elements.installDialog].some((item) => item.open)) {
     unlockPageScroll();
     document.documentElement.classList.remove('keyboard-open');
   }
@@ -1073,12 +1145,11 @@ function updateListingPhotoCount(item) {
 
 function collectListingForm(item) {
   const current = normalizeListing(item.listing);
+  const titleInputs = [...document.querySelectorAll('[data-generated-title]')].map((input) => input.value.trim());
   item.listing = {
     ...current,
-    color: document.getElementById('listingColor').value.trim(),
-    material: document.getElementById('listingMaterial').value.trim(),
-    measurements: document.getElementById('listingMeasurements').value.trim(),
-    defects: document.getElementById('listingDefects').value.trim(),
+    aiNotes: document.getElementById('listingAiNotes')?.value.trim() || '',
+    generatedTitles: titleInputs.length === 3 && titleInputs.every(Boolean) ? titleInputs : current.generatedTitles,
     baseDescription: document.getElementById('listingBaseDescription').value.trim(),
     vestiaireEnabled: document.getElementById('listingVestiaireEnabled').checked,
     photoCount: activeListingPhotos.length,
@@ -1086,6 +1157,40 @@ function collectListingForm(item) {
   };
   item.updatedAt = new Date().toISOString();
   return item;
+}
+
+function renderListingTitleVariants(item) {
+  const variants = generateTitleVariants(item);
+  const labels = ['Vinted · max 100', 'Wallapop / Subito · max 50', 'eBay · max 80'];
+  const limits = [100, 50, 80];
+  const container = document.getElementById('listingTitleVariants');
+  container.innerHTML = variants.map((title, index) => `
+    <article class="listing-title-option selected editable">
+      <span><small>${labels[index]}</small><textarea rows="2" data-generated-title="${index}" maxlength="${limits[index]}">${escapeHtml(title)}</textarea><em class="title-count">${title.length} / ${limits[index]}</em></span>
+      <button type="button" data-copy-title="${index}">Copia</button>
+    </article>`).join('');
+  container.querySelectorAll('[data-generated-title]').forEach((input) => input.addEventListener('input', () => {
+    const count = input.closest('.listing-title-option').querySelector('.title-count');
+    const limit = limits[Number(input.dataset.generatedTitle)];
+    count.textContent = `${input.value.length} / ${limit}`;
+    count.classList.toggle('over', input.value.length > limit);
+    const current = selectedItem();
+    if (current) {
+      const titles = [...container.querySelectorAll('[data-generated-title]')].map((field) => field.value.trim());
+      if (titles.every(Boolean)) current.listing.generatedTitles = titles;
+    }
+  }));
+  container.querySelectorAll('[data-generated-title]').forEach((input) => input.addEventListener('change', () => {
+    const current = selectedItem();
+    if (!current) return;
+    collectListingForm(current);
+    saveInventory();
+    refreshListingStudio();
+  }));
+  container.querySelectorAll('[data-copy-title]').forEach((button) => button.addEventListener('click', () => {
+    const input = container.querySelector(`[data-generated-title="${button.dataset.copyTitle}"]`);
+    copyText(input?.value || '', 'Titolo copiato');
+  }));
 }
 
 function renderListingPhotos() {
@@ -1177,7 +1282,7 @@ function bindListingPlatformCards(item, contents) {
       if (action === 'description') return copyText(content.description, `Descrizione ${platform.label} copiata`);
       if (action === 'open') {
         await copyText(formatListingText(platformId, content), 'Contenuti copiati');
-        window.open(platform.openUrl, '_blank', 'noopener');
+        launchPlatform(platform);
         return;
       }
       if (action === 'share') await shareListingPackage(platform, content);
@@ -1211,6 +1316,67 @@ async function shareListingPackage(platform, content) {
   await copyText(text, 'Contenuti copiati');
 }
 
+async function generateListingWithFreeAI() {
+  const item = selectedItem();
+  if (!item) return;
+  collectListingForm(item);
+  if (!activeListingPhotos.length) return showToast('Importa prima almeno una fotografia');
+  if (!isAiShortcutConfigured()) {
+    openAiSetup();
+    return;
+  }
+
+  const brief = buildMXLABAIInput(item, item.listing.aiNotes, activeListingPhotos.length);
+  await copyText(brief, 'Istruzioni MXLAB preparate');
+  const files = activeListingPhotos.map(photoToFile);
+  if (!navigator.share || !navigator.canShare?.({ files })) {
+    updateAiShortcutStatus('Condivisione foto non disponibile. Apri la guida di configurazione.');
+    return showToast('Condivisione foto non disponibile');
+  }
+
+  try {
+    updateAiShortcutStatus(`Nel foglio di condivisione seleziona “${MXLAB_SHORTCUT_NAME}”.`);
+    await navigator.share({
+      title: `${item.code} · Generazione annuncio MXLAB`,
+      text: 'Le istruzioni complete sono negli appunti. Analizza le fotografie e restituisci soltanto l’annuncio finale.',
+      files,
+    });
+    updateAiShortcutStatus('Quando il comando termina, premi “Importa risultato”.');
+    showToast('Ora importa il risultato dagli appunti');
+  } catch (error) {
+    if (error?.name !== 'AbortError') showToast('Impossibile avviare il comando');
+  }
+}
+
+async function importGeneratedListingFromClipboard() {
+  const item = selectedItem();
+  if (!item) return;
+  const raw = await readClipboardText();
+  try {
+    const result = parseMXLABAIOutput(raw);
+    item.listing = {
+      ...normalizeListing(item.listing),
+      generatedTitles: result.titles,
+      baseDescription: result.description,
+      aiGeneratedAt: new Date().toISOString(),
+      aiSource: 'Apple Intelligence · Comandi Rapidi',
+      photoCount: activeListingPhotos.length,
+      updatedAt: new Date().toISOString(),
+    };
+    item.updatedAt = new Date().toISOString();
+    document.getElementById('listingBaseDescription').value = result.description;
+    renderListingTitleVariants(item);
+    saveInventory();
+    refreshListingStudio();
+    renderPublish();
+    updateAiShortcutStatus(result.warnings.length ? `Importato. Controlla: ${result.warnings.join(', ')}.` : 'Annuncio importato correttamente e pronto da controllare.');
+    showToast(result.warnings.length ? 'Importato con dati da controllare' : 'Annuncio IA importato');
+  } catch (error) {
+    updateAiShortcutStatus(error.message || 'Risultato non riconosciuto.');
+    showToast(error.message || 'Risultato non riconosciuto');
+  }
+}
+
 async function openListingStudio(item) {
   if (!item || item.status === 'sold') return;
   closeDialog(elements.itemActionsDialog);
@@ -1221,12 +1387,11 @@ async function openListingStudio(item) {
   saveInventory();
   document.getElementById('listingItemCode').textContent = item.code;
   document.getElementById('listingItemTitle').textContent = `${item.brand} · ${item.title}`;
-  document.getElementById('listingColor').value = item.listing.color;
-  document.getElementById('listingMaterial').value = item.listing.material;
-  document.getElementById('listingMeasurements').value = item.listing.measurements;
-  document.getElementById('listingDefects').value = item.listing.defects;
+  document.getElementById('listingAiNotes').value = item.listing.aiNotes || '';
   document.getElementById('listingBaseDescription').value = item.listing.baseDescription || generateBaseDescription(item);
+  updateAiShortcutStatus(item.listing.aiGeneratedAt ? `Ultima generazione: ${formatDate(item.listing.aiGeneratedAt.slice(0, 10))}.` : 'Prima configurazione: circa un minuto. In seguito bastano Genera e Importa.');
   document.getElementById('listingVestiaireEnabled').checked = item.listing.vestiaireEnabled;
+  renderListingTitleVariants(item);
   renderListingPhotos();
   refreshListingStudio();
   openDialog(elements.listingDialog);
@@ -1249,7 +1414,7 @@ function renderRemovalChecklist(item) {
   elements.removalChecklist.innerHTML = listing.removalChecklist.length
     ? listing.removalChecklist.map((entry) => {
         const platform = getPlatform(entry.platformId);
-        const url = listing.listingUrls[entry.platformId] || platform?.openUrl || '#';
+        const url = listing.listingUrls[entry.platformId] || platform?.webUrl || '#';
         return `<article class="removal-row ${entry.done ? 'done' : ''}" data-removal-platform="${entry.platformId}">
           <label><input type="checkbox" ${entry.done ? 'checked' : ''} /><span><strong>${escapeHtml(platform?.label || entry.platformId)}</strong><small>${entry.done ? 'Rimosso' : 'Ancora da rimuovere'}</small></span></label>
           <button type="button" data-removal-open data-url="${escapeHtml(url)}">Apri</button>
@@ -1717,7 +1882,7 @@ function initializeEvents() {
   document.querySelectorAll('[data-close-dialog]').forEach((button) => button.addEventListener('click', () => closeDialog(document.getElementById(button.dataset.closeDialog))));
   document.querySelectorAll('dialog').forEach((dialog) => dialog.addEventListener('close', () => {
     if (dialog === elements.listingDialog) revokeListingObjectUrls();
-    if (![elements.itemDialog, elements.itemActionsDialog, elements.targetDialog, elements.saleDialog, elements.listingDialog, elements.removalDialog, elements.installDialog].some((item) => item.open)) document.body.classList.remove('dialog-open');
+    if (![elements.itemDialog, elements.itemActionsDialog, elements.targetDialog, elements.saleDialog, elements.listingDialog, elements.removalDialog, elements.aiSetupDialog, elements.installDialog].some((item) => item.open)) document.body.classList.remove('dialog-open');
   }));
 
   document.getElementById('advanceStatusButton').addEventListener('click', () => {
@@ -1768,20 +1933,35 @@ function initializeEvents() {
     } catch { showToast('Impossibile importare le foto'); }
     finally { elements.listingPhotoInput.value = ''; document.getElementById('addListingPhotosButton').disabled = false; }
   });
-  ['listingColor', 'listingMaterial', 'listingMeasurements', 'listingDefects', 'listingBaseDescription'].forEach((id) => {
-    document.getElementById(id).addEventListener('input', () => {
-      const item = selectedItem(); if (!item) return;
-      collectListingForm(item);
-      renderListingReadiness(item);
-    });
-    document.getElementById(id).addEventListener('change', refreshListingStudio);
+  document.getElementById('listingAiNotes').addEventListener('input', () => {
+    const item = selectedItem(); if (!item) return;
+    item.listing.aiNotes = document.getElementById('listingAiNotes').value.trim();
   });
+  document.getElementById('openAiSetupButton').addEventListener('click', openAiSetup);
+  document.getElementById('generateAiListingButton').addEventListener('click', generateListingWithFreeAI);
+  document.getElementById('importAiResultButton').addEventListener('click', importGeneratedListingFromClipboard);
+  document.getElementById('copyAiShortcutPromptButton').addEventListener('click', () => copyText(document.getElementById('aiShortcutPrompt').value, 'Prompt del comando copiato'));
+  document.getElementById('openShortcutsButton').addEventListener('click', () => { window.location.href = 'shortcuts://'; });
+  document.getElementById('saveAiSetupButton').addEventListener('click', () => {
+    const configured = document.getElementById('aiShortcutConfiguredCheckbox').checked;
+    setAiShortcutConfigured(configured);
+    closeDialog(elements.aiSetupDialog);
+    showToast(configured ? 'Generatore IA configurato' : 'Configurazione non completata');
+  });
+  document.getElementById('listingBaseDescription').addEventListener('input', () => {
+    const item = selectedItem(); if (!item) return;
+    collectListingForm(item);
+    renderListingReadiness(item);
+  });
+  document.getElementById('listingBaseDescription').addEventListener('change', refreshListingStudio);
   document.getElementById('listingVestiaireEnabled').addEventListener('change', refreshListingStudio);
   document.getElementById('generateDescriptionButton').addEventListener('click', () => {
     const item = selectedItem(); if (!item) return;
     collectListingForm(item);
+    item.listing.generatedTitles = [];
     item.listing.baseDescription = generateBaseDescription(item);
     document.getElementById('listingBaseDescription').value = item.listing.baseDescription;
+    renderListingTitleVariants(item);
     refreshListingStudio();
     showToast('Descrizione generata');
   });
@@ -1963,6 +2143,11 @@ function registerServiceWorker() {
 function initialize() {
   navigator.storage?.persist?.().catch(() => false);
   if (elements.appVersionLabel) elements.appVersionLabel.textContent = `Hub v${APP_VERSION}`;
+  const aiPrompt = document.getElementById('aiShortcutPrompt');
+  if (aiPrompt) aiPrompt.value = `${MXLAB_SHORTCUT_PROMPT}
+
+Inserisci inoltre nel campo dell’azione le variabili “Input rapido” e “Appunti”.`;
+  updateAiShortcutStatus();
   ensureGoogleMigration();
   applyDataQualityRepairs({ silent: true });
   applyTheme();

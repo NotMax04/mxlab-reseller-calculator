@@ -1,26 +1,21 @@
-# MXLAB Reseller Hub v3.0
+# MXLAB Reseller Hub v3.2
 
-PWA gratuita e installabile su iPhone per gestire il progetto MXLAB in un unico posto.
+App web installabile su iPhone per gestire inventario, prezzi, fotografie, generazione annunci e cross-listing MXLAB.
 
-## Moduli
+## Novità v3.2
 
-- Calcolatore prezzi multipiattaforma con formule ufficiali MXLAB
-- Inventario operativo e registrazione vendite
-- Studio annunci e cross-listing assistito
-- Archivio fotografico locale tramite IndexedDB
-- Generazione locale di titoli e descrizioni per piattaforma
-- Prezzi automatici per Vinted, eBay, Wallapop, Subito, Facebook Marketplace, Vestiaire, Depop e Grailed
-- Sessione guidata di pubblicazione con copia, condivisione, apertura e stato completato
-- Checklist di rimozione degli altri annunci dopo una vendita
-- Storico vendite, dashboard, lotti, fornitori, spese e checklist
-- Esportazione CSV e backup JSON
-- Funzionamento offline
+- Generazione completamente gratuita dei tre titoli e della descrizione tramite Apple Intelligence e Comandi Rapidi.
+- Istruzioni complete del progetto annunci MXLAB incorporate automaticamente nel brief.
+- Le fotografie vengono condivise dal relativo articolo senza passare da Galleria o ChatGPT.
+- Campo unico per misure e informazioni scritte prioritarie.
+- Importazione del risultato dagli appunti con riconoscimento automatico dei tre titoli e della descrizione.
+- Titoli modificabili direttamente nell'app con limiti 100, 50 e 80 caratteri.
+- Nessuna chiave API, nessun server e nessun costo per generazione.
+- Compatibilità con inventario, fotografie e backup delle versioni precedenti.
 
-## Cross-listing assistito
+## Configurazione gratuita
 
-L'app non usa bot o scraping. Prepara contenuti e fotografie, apre la piattaforma ufficiale e registra il completamento del passaggio. La pubblicazione finale resta manuale sulle piattaforme che non offrono integrazioni ufficiali.
-
-Le fotografie sono compresse a un massimo di 1600 px e salvate soltanto sul dispositivo in IndexedDB. Il backup JSON contiene dati e testi, non i file fotografici.
+La prima volta si crea sul proprio iPhone un comando rapido denominato `MXLAB Annuncio` con le azioni indicate nella guida integrata. In seguito il flusso è: Foto → Genera → seleziona il comando → Importa risultato.
 
 ## Test
 

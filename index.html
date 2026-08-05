@@ -10,10 +10,10 @@
     <meta name="apple-mobile-web-app-title" content="MXLAB Hub" />
     <meta name="description" content="Calcolatore prezzi, inventario, studio annunci, storico vendite e dashboard operativa MXLAB." />
     <title>MXLAB Reseller Hub</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=12" />
-    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png?v=12" />
-    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png?v=12" />
-    <link rel="stylesheet" href="./styles.css?v=12" />
+    <link rel="manifest" href="./manifest.webmanifest?v=14" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png?v=14" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png?v=14" />
+    <link rel="stylesheet" href="./styles.css?v=14" />
   </head>
   <body>
     <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -22,7 +22,7 @@
     <div class="app-shell">
       <header class="topbar">
         <button class="brand" id="brandButton" type="button" aria-label="Apri dashboard">
-          <img class="brand-icon" src="./icon-192.png?v=12" alt="" width="48" height="48" />
+          <img class="brand-icon" src="./icon-192.png?v=14" alt="" width="48" height="48" />
           <div>
             <p class="eyebrow">MXLAB</p>
             <h1 id="pageTitle">Calcolatore</h1>
@@ -414,7 +414,7 @@
 
           <footer class="app-footer">
             <p>Formule ufficiali MXLAB · Dati salvati solo sul dispositivo</p>
-            <span id="appVersionLabel">Hub v3.0.0</span>
+            <span id="appVersionLabel">Hub v3.2.0</span>
           </footer>
         </section>
       </main>
@@ -615,15 +615,34 @@
             <p class="field-hint">La prima foto è la copertina. Tocca una foto per renderla principale.</p>
           </section>
 
-          <section class="listing-section">
-            <div class="listing-section-heading"><div><p class="section-kicker">2 · SCHEDA UNICA</p><h3>Dettagli riutilizzati ovunque</h3></div><button class="text-button" id="generateDescriptionButton" type="button">Genera testo</button></div>
-            <div class="form-grid two-cols">
-              <label class="field"><span>Colore</span><input id="listingColor" autocomplete="off" placeholder="Nero" /></label>
-              <label class="field"><span>Materiale</span><input id="listingMaterial" autocomplete="off" placeholder="100% cotone" /></label>
+          <section class="listing-section ai-listing-section">
+            <div class="listing-section-heading"><div><p class="section-kicker">2 · GENERAZIONE IA GRATUITA</p><h3>Foto → titoli e descrizione MXLAB</h3></div><button class="text-button" id="openAiSetupButton" type="button">Configura</button></div>
+            <div class="ai-generator-card">
+              <div class="ai-generator-icon" aria-hidden="true">✦</div>
+              <div class="ai-generator-copy">
+                <strong>Apple Intelligence tramite Comandi Rapidi</strong>
+                <small>Nessuna API, nessun costo per generazione. Le foto restano nel flusso scelto sul tuo iPhone.</small>
+              </div>
+              <span class="ai-status-badge" id="aiShortcutStatus">Da configurare</span>
             </div>
-            <label class="field"><span>Misure principali</span><textarea id="listingMeasurements" rows="3" placeholder="Spalle 43 cm · Petto 46 cm · Lunghezza 70 cm"></textarea></label>
-            <label class="field"><span>Difetti</span><textarea id="listingDefects" rows="2" placeholder="Lascia vuoto se non ci sono difetti rilevanti"></textarea></label>
-            <label class="field"><span>Descrizione principale</span><textarea id="listingBaseDescription" rows="8" placeholder="Genera una descrizione oppure scrivila manualmente"></textarea></label>
+            <label class="field"><span>Misure e informazioni aggiuntive</span><textarea id="listingAiNotes" rows="5" placeholder="Esempio: 54 cm Spalle - 79 cm Lunghezza - 27 cm Manica - 62 cm Petto. Aggiungi qui solo informazioni che devono avere priorità sulle foto."></textarea></label>
+            <div class="ai-action-grid">
+              <button class="primary-button" id="generateAiListingButton" type="button">✦ Genera con IA gratuita</button>
+              <button class="secondary-button" id="importAiResultButton" type="button">↓ Importa risultato</button>
+            </div>
+            <p class="field-hint" id="aiGenerationStatus">Prima configurazione: circa un minuto. In seguito bastano Genera e Importa.</p>
+
+            <div class="title-variants-wrap ai-output-wrap">
+              <span class="micro-label">TITOLI GENERATI</span>
+              <div id="listingTitleVariants" class="listing-title-variants"></div>
+              <p class="field-hint">Puoi correggere direttamente i tre titoli. I limiti sono 100, 50 e 80 caratteri.</p>
+            </div>
+            <label class="field"><span>Descrizione principale generata</span><textarea id="listingBaseDescription" rows="15" placeholder="Dopo la generazione comparirà qui l’annuncio completo nel formato MXLAB."></textarea></label>
+            <button class="text-button local-fallback-button" id="generateDescriptionButton" type="button">Genera solo dai dati già inseriti</button>
+            <div class="mxlab-rules-card">
+              <strong>Standard MXLAB completo</strong>
+              <small>Le istruzioni del tuo progetto sono incorporate nel brief: analisi foto, materiale obbligatorio, misure esatte, tre titoli SEO e formato finale senza testo aggiuntivo.</small>
+            </div>
             <label class="switch-row vestiaire-switch">
               <span><strong>Pubblica anche su Vestiaire</strong><small>Attivalo soltanto per marchi e articoli adatti.</small></span>
               <input id="listingVestiaireEnabled" type="checkbox" />
@@ -655,6 +674,33 @@
       </div>
     </dialog>
 
+
+    <dialog class="sheet-dialog compact-dialog" id="aiSetupDialog">
+      <div class="sheet-content ai-setup-content">
+        <header class="sheet-header">
+          <button class="sheet-close" type="button" data-close-dialog="aiSetupDialog" aria-label="Chiudi">×</button>
+          <div><p class="section-kicker">CONFIGURAZIONE UNA VOLTA</p><h2>MXLAB Annuncio</h2></div><span></span>
+        </header>
+        <div class="sheet-body ai-setup-body">
+          <div class="ai-setup-note"><strong>Completamente gratuito</strong><small>Usa il modello Apple Intelligence incluso nell’iPhone. Non richiede chiavi API.</small></div>
+          <ol class="ai-setup-steps">
+            <li><span>1</span><div><strong>Apri Comandi Rapidi e crea un comando</strong><small>Chiamalo esattamente “MXLAB Annuncio”.</small></div></li>
+            <li><span>2</span><div><strong>Abilita “Mostra nel foglio di condivisione”</strong><small>Accetta Immagini, File multimediali e Testo.</small></div></li>
+            <li><span>3</span><div><strong>Aggiungi “Ottieni appunti”</strong><small>Il brief completo MXLAB viene copiato automaticamente dall’app.</small></div></li>
+            <li><span>4</span><div><strong>Aggiungi “Usa modello”</strong><small>Scegli Private Cloud Compute. Nel prompt inserisci il testo copiabile qui sotto, poi aggiungi le variabili Input rapido e Appunti.</small></div></li>
+            <li><span>5</span><div><strong>Aggiungi “Copia negli appunti”</strong><small>Come contenuto seleziona la Risposta del modello.</small></div></li>
+          </ol>
+          <label class="field"><span>Prompt breve da inserire nell’azione “Usa modello”</span><textarea id="aiShortcutPrompt" rows="6" readonly></textarea></label>
+          <div class="ai-setup-actions">
+            <button class="secondary-button" id="copyAiShortcutPromptButton" type="button">Copia prompt</button>
+            <button class="secondary-button" id="openShortcutsButton" type="button">Apri Comandi Rapidi</button>
+          </div>
+          <label class="setup-confirm-row"><input id="aiShortcutConfiguredCheckbox" type="checkbox" /><span><strong>Ho creato il comando “MXLAB Annuncio”</strong><small>Puoi riaprire questa guida in qualsiasi momento.</small></span></label>
+          <button class="primary-button full-width" id="saveAiSetupButton" type="button">Salva configurazione</button>
+        </div>
+      </div>
+    </dialog>
+
     <dialog class="sheet-dialog compact-dialog" id="installDialog">
       <div class="sheet-content">
         <header class="sheet-header">
@@ -680,6 +726,6 @@
       </div>
     </template>
 
-    <script type="module" src="./app.js?v=12"></script>
+    <script type="module" src="./app.js?v=14"></script>
   </body>
 </html>

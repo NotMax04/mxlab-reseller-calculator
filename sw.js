@@ -1,7 +1,7 @@
-const CACHE_NAME = 'mxlab-reseller-hub-v3-0';
+const CACHE_NAME = 'mxlab-reseller-hub-v3-2';
 const APP_SHELL = [
   './', './index.html', './styles.css', './app.js', './calculator.js', './inventory.js', './seed-data.js',
-  './listing.js', './media-store.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png',
+  './listing.js', './mxlab-ai.js', './media-store.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png',
 ];
 
 self.addEventListener('install', (event) => {
