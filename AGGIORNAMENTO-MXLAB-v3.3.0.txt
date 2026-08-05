@@ -1,0 +1,54 @@
+MXLAB Reseller Hub v3.3.0 — Prima prova del workflow reale
+
+PRIMA DI AGGIORNARE
+1. Apri MXLAB Hub → Dati.
+2. Esporta un backup JSON.
+
+PATCH DA CARICARE NEL REPOSITORY
+- index.html
+- app.js
+- listing.js
+- inventory.js
+- styles.css
+- sw.js
+- package.json
+- README.md
+- listing.test.mjs (facoltativo per il sito, incluso per completezza)
+
+PROCEDURA
+1. Estrai mxlab-reseller-hub-v3.3.0-patch.zip.
+2. Nel repository GitHub: Add file → Upload files.
+3. Carica i file estratti e conferma la sostituzione.
+4. Commit directly to main.
+5. Messaggio commit: Integra workflow reale MXLAB v3.3.0
+6. Attendi GitHub Pages.
+7. Apri il sito in Safari e ricarica.
+8. Chiudi MXLAB Hub dalle app recenti e riaprilo dalla Home.
+9. Controlla in Dati che compaia Hub v3.3.0.
+
+COSA CAMBIA
+- Il target non è più obbligatorio quando crei l’articolo.
+- Dopo aver aggiunto un nuovo articolo si apre automaticamente lo Studio annuncio.
+- Titoli e descrizione restano nell’app: non serve copiarli nelle Note.
+- La ricerca Vinted viene aperta con parole chiave già compilate.
+- Premendo Avvia ricerca Vinted viene copiato in anticipo il messaggio per analizzare il video in ChatGPT.
+- Il target restituito da ChatGPT si inserisce una volta sola e genera tutti i prezzi.
+- Ogni piattaforma può essere segnata Da fare, Bozza o Online.
+- Nella sezione Pubblica sono presenti i quattro messaggi rapidi agli acquirenti.
+
+PRIMA PROVA CONSIGLIATA
+1. Crea un solo articolo e lascia vuoto il target.
+2. Importa le foto definitive.
+3. Genera/importa titoli e descrizione con MXLAB Annuncio.
+4. Premi Avvia ricerca Vinted.
+5. Su Vinted controlla i filtri mostrati nell’app e registra i risultati.
+6. Apri la stessa chat ChatGPT, allega il video e incolla il messaggio già copiato.
+7. Torna nell’app, inserisci il target e premi Usa target.
+8. Prepara una bozza e verifica i pulsanti Da fare / Bozza / Online.
+
+LIMITI DELLA PRIMA PROVA
+- La ricerca apre automaticamente le parole chiave, ma i filtri Vinted vanno ancora controllati e impostati manualmente.
+- Il video continua a essere analizzato nella stessa chat ChatGPT, per mantenere la qualità del metodo attuale.
+- La generazione delle fotografie non è inclusa.
+
+I dati locali, l’inventario, lo storico e le foto delle versioni precedenti restano compatibili.

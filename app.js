@@ -8,16 +8,21 @@ import {
 import { GOOGLE_MIGRATION } from './seed-data.js';
 import {
   PUBLISH_PLATFORMS,
+  buildVintedPriceAnalysisPrompt,
+  buildVintedSearchUrl,
   createRemovalChecklist,
   formatListingText,
   generateBaseDescription,
   generatePlatformContent,
   generateTitleVariants,
   getPlatform,
+  getPlatformState,
   getPublishPlan,
+  getVintedFilterSummary,
+  getVintedSearchQuery,
   listingReadiness,
-  markPlatformComplete,
   normalizeListing,
+  setPlatformState,
 } from './listing.js';
 import {
   addItemPhotos,
@@ -49,7 +54,7 @@ import {
   safeNumber,
 } from './inventory.js';
 
-const APP_VERSION = '3.2.1';
+const APP_VERSION = '3.3.0';
 const CALC_STORAGE_KEY = 'mxlab-reseller-calculator-v4';
 const CALC_HISTORY_KEY = 'mxlab-reseller-target-history-v1';
 const HUB_PREFS_KEY = 'mxlab-reseller-hub-prefs-v1';
@@ -90,10 +95,18 @@ const platformMeta = Object.freeze({
 
 const DIRECT_PAYOUT_PLATFORMS = Object.freeze(['Vinted', 'Wallapop', 'Subito', 'Facebook Marketplace']);
 
+
+const BUYER_MESSAGES = Object.freeze({
+  favorite: 'Ciao! ✨ Se ti servono info aggiuntive scrivimi pure.',
+  accepted: 'Perfetto, offerta accettata! ✅\nPreparo il pacco appena confermi così riesco a spedire il prima possibile. 📦✨',
+  pickup: 'Ciao! Il pacco è disponibile per il ritiro 📦✨\nFammi sapere appena riesci a prenderlo.',
+  review: 'Spero che l’articolo ti piaccia! ✨\nSe ti sei trovato/a bene, una recensione positiva mi farebbe molto piacere. ⭐',
+});
+
 const viewMeta = Object.freeze({
   calculator: { title: 'Calcolatore', subtitle: 'Prezzi pronti per ogni piattaforma.' },
   inventory: { title: 'Inventario', subtitle: 'Ogni capo sotto controllo.' },
-  publish: { title: 'Pubblica', subtitle: 'Foto, testi e prezzi in un solo flusso.' },
+  publish: { title: 'Pubblica', subtitle: 'Testi, ricerca prezzo, bozze e annunci.' },
   history: { title: 'Storico', subtitle: '117 vendite reali, sempre consultabili.' },
   dashboard: { title: 'Dashboard', subtitle: 'Numeri reali, decisioni migliori.' },
   data: { title: 'Dati', subtitle: 'Backup e impostazioni.' },
@@ -153,6 +166,12 @@ const elements = {
   listingPhotoInput: document.getElementById('listingPhotoInput'),
   listingPhotoGrid: document.getElementById('listingPhotoGrid'),
   listingPlatformCards: document.getElementById('listingPlatformCards'),
+  vintedSearchQuery: document.getElementById('vintedSearchQuery'),
+  vintedFilterSummary: document.getElementById('vintedFilterSummary'),
+  vintedResearchStatus: document.getElementById('vintedResearchStatus'),
+  vintedVideoReady: document.getElementById('vintedVideoReady'),
+  vintedSuggestedTarget: document.getElementById('vintedSuggestedTarget'),
+  researchPricePreview: document.getElementById('researchPricePreview'),
   removalDialog: document.getElementById('removalDialog'),
   removalChecklist: document.getElementById('removalChecklist'),
   aiSetupDialog: document.getElementById('aiSetupDialog'),
@@ -732,7 +751,7 @@ function validateItemStep(step) {
   const requiredByStep = [
     ['itemTitle', 'itemBrand'],
     ['itemCost'],
-    ['itemTarget'],
+    [],
   ];
   for (const id of requiredByStep[step] || []) {
     const input = document.getElementById(id);
@@ -744,10 +763,6 @@ function validateItemStep(step) {
   }
   if (step === 1 && normalizeTarget(document.getElementById('itemCost').value) == null) {
     showToast('Costo non valido');
-    return false;
-  }
-  if (step === 2 && (normalizeTarget(document.getElementById('itemTarget').value) ?? 0) <= 0) {
-    showToast('Target non valido');
     return false;
   }
   return true;
@@ -818,7 +833,7 @@ function updateItemTargetPreview() {
   const preview = document.getElementById('itemTargetPreview');
   const value = preview.querySelector('strong');
   if (target == null || target <= 0) {
-    value.textContent = '—';
+    value.textContent = 'Da definire';
     return;
   }
   value.textContent = euroX90(calculateMXLABPrices(target, calculator.ebayShipping).prices.vinted);
@@ -829,6 +844,10 @@ function targetHistoryWithChange(existing, nextTarget) {
   const previousTarget = roundMoney(existing?.target || 0);
   const normalizedTarget = roundMoney(nextTarget || 0);
   if (!existing || normalizedTarget <= 0) return currentHistory;
+  if (!currentHistory.length && previousTarget <= 0 && normalizedTarget > 0) {
+    currentHistory.push({ target: normalizedTarget, date: localDateISO(), kind: 'initial' });
+    return currentHistory;
+  }
   if (!currentHistory.length && previousTarget > 0) {
     currentHistory.push({ target: previousTarget, date: String(existing.createdAt || localDateISO()).slice(0, 10), kind: 'initial' });
   }
@@ -1125,7 +1144,8 @@ function getPublishItems() {
 function publishCardMarkup(item) {
   const readiness = listingReadiness(item, item.listing?.photoCount || 0);
   const plan = getPublishPlan(item, prefs);
-  const completed = plan.filter((platform) => item.listing?.completedPlatforms?.[platform.id]).length;
+  const liveCount = plan.filter((platform) => getPlatformState(item, platform.id) === 'live').length;
+  const draftCount = plan.filter((platform) => getPlatformState(item, platform.id) === 'draft').length;
   const live = item.status === 'live';
   return `<article class="publish-item-card" data-publish-item="${item.id}">
     <button type="button" class="publish-item-main">
@@ -1134,7 +1154,7 @@ function publishCardMarkup(item) {
         <span class="publish-state ${live ? 'live' : readiness.ready ? 'ready' : ''}">${live ? 'Online' : readiness.ready ? 'Pronto' : `${readiness.percent}%`}</span>
       </div>
       <div class="publish-progress-track"><span style="width:${readiness.percent}%"></span></div>
-      <div class="publish-item-meta"><span>${item.listing?.photoCount || 0} foto</span><span>${completed}/${plan.length} piattaforme</span><strong>${item.target > 0 ? formatMoney(item.target) : 'Target assente'}</strong></div>
+      <div class="publish-item-meta"><span>${item.listing?.photoCount || 0} foto</span><span>${draftCount ? `${draftCount} bozze · ` : ''}${liveCount}/${plan.length} online</span><strong>${item.target > 0 ? formatMoney(item.target) : 'Target assente'}</strong></div>
     </button>
   </article>`;
 }
@@ -1179,6 +1199,9 @@ function collectListingForm(item) {
     generatedTitles: titleInputs.length === 3 && titleInputs.every(Boolean) ? titleInputs : current.generatedTitles,
     baseDescription: document.getElementById('listingBaseDescription').value.trim(),
     vestiaireEnabled: document.getElementById('listingVestiaireEnabled').checked,
+    vintedSearchQuery: elements.vintedSearchQuery?.value.trim() || current.vintedSearchQuery,
+    vintedVideoReady: Boolean(elements.vintedVideoReady?.checked),
+    vintedSuggestedTarget: normalizeTarget(elements.vintedSuggestedTarget?.value) ?? current.vintedSuggestedTarget,
     photoCount: activeListingPhotos.length,
     updatedAt: new Date().toISOString(),
   };
@@ -1264,12 +1287,101 @@ function renderListingReadiness(item) {
   return readiness;
 }
 
+function renderResearchPricePreview(item) {
+  if (!elements.researchPricePreview) return;
+  const entered = normalizeTarget(elements.vintedSuggestedTarget?.value);
+  const target = entered && entered > 0 ? entered : Number(item?.target || 0);
+  if (!target) {
+    elements.researchPricePreview.innerHTML = '<p>Inserisci il target restituito da ChatGPT per vedere subito tutti i prezzi.</p>';
+    return;
+  }
+  const prices = calculateMXLABPrices(target, calculator.ebayShipping).prices;
+  elements.researchPricePreview.innerHTML = `
+    <article><span>Target</span><strong>${formatMoney(target)}</strong></article>
+    <article><span>Vinted</span><strong>${euroX90(prices.vinted)}</strong></article>
+    <article><span>eBay</span><strong>${euroX90(prices.ebay)}</strong></article>
+    <article><span>Wallapop</span><strong>${euroX90(prices.wallapop)}</strong></article>
+    <article><span>Subito</span><strong>${euroWhole(prices.subito)}</strong></article>
+    <article><span>Depop</span><strong>${euroX90(prices.depop)}</strong></article>
+    <article><span>Grailed</span><strong>${dollarWhole(prices.grailed)}</strong></article>`;
+}
+
+function renderVintedResearch(item) {
+  if (!item || !elements.vintedSearchQuery) return;
+  item.listing = normalizeListing(item.listing);
+  const listing = item.listing;
+  const query = listing.vintedSearchQuery || getVintedSearchQuery(item);
+  if (document.activeElement !== elements.vintedSearchQuery) elements.vintedSearchQuery.value = query;
+  elements.vintedVideoReady.checked = Boolean(listing.vintedVideoReady);
+  if (document.activeElement !== elements.vintedSuggestedTarget) {
+    const suggestion = listing.vintedSuggestedTarget || item.target || 0;
+    elements.vintedSuggestedTarget.value = suggestion > 0 ? formatTarget(suggestion) : '';
+  }
+  const filters = getVintedFilterSummary(item);
+  elements.vintedFilterSummary.innerHTML = filters.length
+    ? filters.map(({ label, value }) => `<span><small>${escapeHtml(label)}</small>${escapeHtml(value)}</span>`).join('')
+    : '<p>Nessun filtro ricavato: completa prima i dati dell’articolo.</p>';
+  const status = item.target > 0
+    ? 'Target salvato'
+    : listing.vintedVideoReady
+      ? 'Video pronto'
+      : listing.vintedResearchStarted
+        ? 'Ricerca avviata'
+        : 'Da iniziare';
+  elements.vintedResearchStatus.textContent = status;
+  elements.vintedResearchStatus.classList.toggle('ready', item.target > 0);
+  renderResearchPricePreview(item);
+}
+
+function startVintedResearch() {
+  const item = selectedItem();
+  if (!item) return;
+  collectListingForm(item);
+  item.listing.vintedSearchQuery = elements.vintedSearchQuery.value.trim() || getVintedSearchQuery(item);
+  item.listing.vintedResearchStarted = true;
+  item.listing.vintedResearchUpdatedAt = new Date().toISOString();
+  const prompt = buildVintedPriceAnalysisPrompt(item);
+  copyText(prompt, 'Richiesta per ChatGPT copiata');
+  saveInventory();
+  renderVintedResearch(item);
+  navigateFromUserGesture(buildVintedSearchUrl(item));
+}
+
+function copyVintedPricePrompt() {
+  const item = selectedItem();
+  if (!item) return;
+  collectListingForm(item);
+  copyText(buildVintedPriceAnalysisPrompt(item), 'Richiesta analisi copiata');
+}
+
+function applyResearchTarget() {
+  const item = selectedItem();
+  if (!item) return;
+  const target = normalizeTarget(elements.vintedSuggestedTarget.value);
+  if (target == null || target <= 0) return showToast('Inserisci il prezzo target restituito da ChatGPT');
+  const changed = saveUpdatedTarget(item, target);
+  item.listing = normalizeListing(item.listing);
+  item.listing.vintedSuggestedTarget = target;
+  item.listing.vintedVideoReady = Boolean(elements.vintedVideoReady.checked);
+  item.listing.vintedResearchUpdatedAt = new Date().toISOString();
+  item.targetInferred = true;
+  item.targetSource = 'Ricerca Vinted · analisi ChatGPT';
+  item.updatedAt = new Date().toISOString();
+  saveInventory();
+  refreshListingStudio();
+  renderInventory();
+  renderPublish();
+  renderDashboard();
+  showToast(changed ? `Target salvato: ${formatMoney(target)}` : 'Target già aggiornato');
+}
+
 function platformCardMarkup(item, platform, content) {
   const listing = normalizeListing(item.listing);
-  const done = Boolean(listing.completedPlatforms[platform.id]);
+  const state = getPlatformState(item, platform.id);
   const url = listing.listingUrls[platform.id] || '';
   const boost = platform.id === 'depop' && content.boostPrice ? `<small>Con boost: ${euroX90(content.boostPrice)}</small>` : '';
-  return `<article class="listing-platform-card ${done ? 'completed' : ''}" data-listing-platform="${platform.id}">
+  const stateLabel = state === 'live' ? 'Online' : state === 'draft' ? 'Bozza pronta' : 'Da fare';
+  return `<article class="listing-platform-card state-${state}" data-listing-platform="${platform.id}">
     <header><span class="platform-badge">${platform.badge}</span><div><strong>${escapeHtml(platform.label)}</strong><small>${escapeHtml(content.title)}</small></div><em>${formatPublishPrice(content)}${boost}</em></header>
     <div class="platform-action-grid">
       <button type="button" data-platform-action="title">Titolo</button>
@@ -1277,8 +1389,13 @@ function platformCardMarkup(item, platform, content) {
       <button type="button" data-platform-action="share">Condividi</button>
       <button type="button" data-platform-action="open">Apri</button>
     </div>
+    <div class="platform-stage-control" role="group" aria-label="Stato ${escapeHtml(platform.label)}">
+      <button type="button" data-platform-state="todo" class="${state === 'todo' ? 'active' : ''}">Da fare</button>
+      <button type="button" data-platform-state="draft" class="${state === 'draft' ? 'active' : ''}">Bozza</button>
+      <button type="button" data-platform-state="live" class="${state === 'live' ? 'active' : ''}">Online</button>
+    </div>
+    <p class="platform-state-caption">Stato: <strong>${stateLabel}</strong></p>
     <label class="listing-url-field"><span>Link annuncio <small>(facoltativo)</small></span><input type="url" data-platform-url value="${escapeHtml(url)}" placeholder="Incollalo dopo la pubblicazione" /></label>
-    <label class="platform-done-row"><input type="checkbox" data-platform-done ${done ? 'checked' : ''} /><span><strong>${done ? 'Completato' : 'Segna come completato'}</strong><small>Serve per la checklist dopo la vendita.</small></span></label>
   </article>`;
 }
 
@@ -1290,11 +1407,13 @@ function refreshListingStudio() {
   const priceModel = calculateMXLABPrices(item.target, calculator.ebayShipping);
   const contents = generatePlatformContent(item, priceModel);
   const plan = getPublishPlan(item, prefs);
-  const completed = plan.filter((platform) => item.listing.completedPlatforms[platform.id]).length;
-  document.getElementById('listingPlatformProgress').textContent = `${completed} / ${plan.length}`;
+  const liveCount = plan.filter((platform) => getPlatformState(item, platform.id) === 'live').length;
+  const draftCount = plan.filter((platform) => getPlatformState(item, platform.id) === 'draft').length;
+  document.getElementById('listingPlatformProgress').textContent = `${liveCount}/${plan.length} online${draftCount ? ` · ${draftCount} bozze` : ''}`;
   elements.listingPlatformCards.innerHTML = plan.map((platform) => platformCardMarkup(item, platform, contents[platform.id])).join('');
-  document.getElementById('completePublishingButton').disabled = !readiness.ready || completed < plan.length;
+  document.getElementById('completePublishingButton').disabled = !readiness.ready || liveCount < plan.length;
   bindListingPlatformCards(item, contents);
+  renderVintedResearch(item);
 }
 
 function bindListingPlatformCards(item, contents) {
@@ -1318,12 +1437,12 @@ function bindListingPlatformCards(item, contents) {
       item.listing.listingUrls[platformId] = event.target.value.trim();
       saveInventory();
     });
-    card.querySelector('[data-platform-done]').addEventListener('change', (event) => {
-      item.listing = markPlatformComplete(item, platformId, event.target.checked);
+    card.querySelectorAll('[data-platform-state]').forEach((button) => button.addEventListener('click', () => {
+      item.listing = setPlatformState(item, platformId, button.dataset.platformState);
       saveInventory();
       refreshListingStudio();
       renderPublish();
-    });
+    }));
   });
 }
 
@@ -1416,6 +1535,9 @@ async function openListingStudio(item) {
   document.getElementById('listingItemTitle').textContent = `${item.brand} · ${item.title}`;
   document.getElementById('listingAiNotes').value = item.listing.aiNotes || '';
   document.getElementById('listingBaseDescription').value = item.listing.baseDescription || generateBaseDescription(item);
+  elements.vintedSearchQuery.value = item.listing.vintedSearchQuery || getVintedSearchQuery(item);
+  elements.vintedVideoReady.checked = Boolean(item.listing.vintedVideoReady);
+  elements.vintedSuggestedTarget.value = (item.listing.vintedSuggestedTarget || item.target) > 0 ? formatTarget(item.listing.vintedSuggestedTarget || item.target) : '';
   updateAiShortcutStatus(item.listing.aiGeneratedAt ? `Ultima generazione: ${formatDate(item.listing.aiGeneratedAt.slice(0, 10))}.` : 'Prima configurazione: circa un minuto. In seguito bastano Genera e Importa.');
   document.getElementById('listingVestiaireEnabled').checked = item.listing.vestiaireEnabled;
   renderListingTitleVariants(item);
@@ -1887,7 +2009,7 @@ function initializeEvents() {
   });
   document.getElementById('openFullCalculatorFromItem').addEventListener('click', () => {
     const target = normalizeTarget(document.getElementById('itemTarget').value);
-    if (target == null) return showToast('Inserisci il target');
+    if (target == null || target <= 0) return showToast('Definisci prima il target dopo la ricerca Vinted');
     calculator.targets = [target]; activeTargetIndex = 0; saveCalculator(); renderTargetInputs(); renderCalculatorResults(); closeDialog(elements.itemDialog); navigate('calculator');
   });
   elements.itemForm.addEventListener('submit', (event) => {
@@ -1904,6 +2026,7 @@ function initializeEvents() {
     if (existingIndex >= 0) inventory[existingIndex] = item;
     else inventory.unshift(item);
     saveInventory(); closeDialog(elements.itemDialog); renderInventory(); renderPublish(); renderDashboard(); showToast(existingIndex >= 0 ? 'Articolo aggiornato' : `${item.code} aggiunto`);
+    if (existingIndex < 0) window.setTimeout(() => openListingStudio(item), 180);
   });
 
   document.querySelectorAll('[data-close-dialog]').forEach((button) => button.addEventListener('click', () => closeDialog(document.getElementById(button.dataset.closeDialog))));
@@ -1925,7 +2048,7 @@ function initializeEvents() {
   document.getElementById('duplicateItemButton').addEventListener('click', () => {
     const item = selectedItem(); if (!item) return;
     closeDialog(elements.itemActionsDialog);
-    const copy = { ...item, id: undefined, code: undefined, status: 'prep', sale: null, platforms: [], listing: { ...normalizeListing(item.listing), completedPlatforms: {}, listingUrls: {}, removalChecklist: [], photoCount: 0 } };
+    const copy = { ...item, id: undefined, code: undefined, status: 'prep', sale: null, platforms: [], listing: { ...normalizeListing(item.listing), platformStates: {}, completedPlatforms: {}, listingUrls: {}, removalChecklist: [], photoCount: 0, vintedResearchStarted: false, vintedVideoReady: false, vintedSuggestedTarget: 0 } };
     openItemDialog(copy);
     document.getElementById('itemId').value = '';
     document.getElementById('itemDialogTitle').textContent = 'Duplica articolo';
@@ -1982,6 +2105,29 @@ function initializeEvents() {
   });
   document.getElementById('listingBaseDescription').addEventListener('change', refreshListingStudio);
   document.getElementById('listingVestiaireEnabled').addEventListener('change', refreshListingStudio);
+  document.getElementById('startVintedResearchButton').addEventListener('click', startVintedResearch);
+  document.getElementById('copyPricePromptButton').addEventListener('click', copyVintedPricePrompt);
+  document.getElementById('applyResearchTargetButton').addEventListener('click', applyResearchTarget);
+  elements.vintedSuggestedTarget.addEventListener('input', () => renderResearchPricePreview(selectedItem()));
+  elements.vintedSearchQuery.addEventListener('change', () => {
+    const item = selectedItem(); if (!item) return;
+    item.listing = normalizeListing(item.listing);
+    item.listing.vintedSearchQuery = elements.vintedSearchQuery.value.trim();
+    item.listing.updatedAt = new Date().toISOString();
+    saveInventory();
+  });
+  elements.vintedVideoReady.addEventListener('change', () => {
+    const item = selectedItem(); if (!item) return;
+    item.listing = normalizeListing(item.listing);
+    item.listing.vintedVideoReady = elements.vintedVideoReady.checked;
+    item.listing.vintedResearchUpdatedAt = new Date().toISOString();
+    saveInventory();
+    renderVintedResearch(item);
+  });
+  document.querySelectorAll('[data-buyer-message]').forEach((button) => button.addEventListener('click', () => {
+    const message = BUYER_MESSAGES[button.dataset.buyerMessage];
+    if (message) copyText(message, 'Messaggio copiato');
+  }));
   document.getElementById('generateDescriptionButton').addEventListener('click', () => {
     const item = selectedItem(); if (!item) return;
     collectListingForm(item);
@@ -1996,7 +2142,7 @@ function initializeEvents() {
     const item = selectedItem(); if (!item) return;
     collectListingForm(item);
     const plan = getPublishPlan(item, prefs);
-    const allDone = plan.every((platform) => item.listing.completedPlatforms[platform.id]);
+    const allDone = plan.every((platform) => getPlatformState(item, platform.id) === 'live');
     const ready = listingReadiness(item, activeListingPhotos.length).ready;
     if (!ready || !allDone) return showToast('Completa foto, scheda e piattaforme');
     item.status = 'live';
@@ -2150,7 +2296,7 @@ function registerServiceWorker() {
   }
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('./sw.js?v=13', { updateViaCache: 'none' });
+      const registration = await navigator.serviceWorker.register('./sw.js?v=14', { updateViaCache: 'none' });
       elements.statusPill.textContent = navigator.onLine ? 'Offline pronto' : 'Modalità offline';
       let refreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {

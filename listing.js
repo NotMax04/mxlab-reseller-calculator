@@ -74,6 +74,12 @@ export const MXLAB_LISTING_RULES = Object.freeze({
 
 const platformMap = new Map(PUBLISH_PLATFORMS.map((platform) => [platform.id, platform]));
 
+export const PLATFORM_PROGRESS_STATES = Object.freeze(['todo', 'draft', 'live']);
+
+function normalizePlatformState(value) {
+  return PLATFORM_PROGRESS_STATES.includes(value) ? value : 'todo';
+}
+
 function words(value) {
   return String(value || '').trim().replace(/\s+/g, ' ');
 }
@@ -158,6 +164,19 @@ export function normalizeListing(value = {}) {
     excludedPlatforms: Array.isArray(listing.excludedPlatforms)
       ? [...new Set(listing.excludedPlatforms.map(String).filter((id) => platformMap.has(id)))]
       : [],
+    platformStates: (() => {
+      const states = listing.platformStates && typeof listing.platformStates === 'object'
+        ? Object.fromEntries(Object.entries(listing.platformStates)
+            .filter(([id]) => platformMap.has(id))
+            .map(([id, state]) => [id, normalizePlatformState(state)]))
+        : {};
+      if (listing.completedPlatforms && typeof listing.completedPlatforms === 'object') {
+        Object.entries(listing.completedPlatforms).forEach(([id, done]) => {
+          if (platformMap.has(id) && Boolean(done) && states[id] !== 'live') states[id] = 'live';
+        });
+      }
+      return states;
+    })(),
     completedPlatforms: listing.completedPlatforms && typeof listing.completedPlatforms === 'object'
       ? Object.fromEntries(Object.entries(listing.completedPlatforms)
           .filter(([id, done]) => platformMap.has(id) && Boolean(done))
@@ -174,6 +193,11 @@ export function normalizeListing(value = {}) {
           .map((entry) => ({ platformId: entry.platformId, done: Boolean(entry.done) }))
       : [],
     photoCount: Math.max(0, Math.trunc(Number(listing.photoCount) || 0)),
+    vintedSearchQuery: String(listing.vintedSearchQuery || '').trim(),
+    vintedResearchStarted: Boolean(listing.vintedResearchStarted),
+    vintedVideoReady: Boolean(listing.vintedVideoReady),
+    vintedSuggestedTarget: Math.max(0, Number(String(listing.vintedSuggestedTarget ?? '').replace(',', '.')) || 0),
+    vintedResearchUpdatedAt: String(listing.vintedResearchUpdatedAt || ''),
     updatedAt: String(listing.updatedAt || ''),
   };
 }
@@ -239,6 +263,67 @@ export function getPreferredTitle(item) {
 
 export function getUniversalTitle(item) {
   return getPreferredTitle(item);
+}
+
+
+export function getVintedSearchQuery(item) {
+  const listing = normalizeListing(item?.listing);
+  if (listing.vintedSearchQuery) return listing.vintedSearchQuery;
+  const { brand, category, original } = baseIdentity(item);
+  const detail = original || words(item?.title) || category;
+  return uniqueParts([brand, detail]).join(' ') || getPreferredTitle(item);
+}
+
+export function buildVintedSearchUrl(item) {
+  const query = getVintedSearchQuery(item);
+  const params = new URLSearchParams();
+  if (query) params.set('search_text', query);
+  return `https://www.vinted.it/catalog${params.size ? `?${params.toString()}` : ''}`;
+}
+
+export function getVintedFilterSummary(item) {
+  const listing = normalizeListing(item?.listing);
+  const description = listing.baseDescription || generateBaseDescription(item);
+  const filters = [
+    ['Categoria', words(item?.category)],
+    ['Brand', words(item?.brand)],
+    ['Taglia', words(item?.size) || lineValue(description, 'Taglia')],
+    ['Condizioni', words(item?.condition) || lineValue(description, 'Condizioni')],
+    ['Colore', listing.color || lineValue(description, 'Colore')],
+    ['Materiale', listing.material || lineValue(description, 'Materiale')],
+  ];
+  return filters.filter(([, value]) => Boolean(value)).map(([label, value]) => ({ label, value }));
+}
+
+export function buildVintedPriceAnalysisPrompt(item) {
+  const listing = normalizeListing(item?.listing);
+  const filters = getVintedFilterSummary(item).map(({ label, value }) => `${label}: ${value}`).join(' · ');
+  const identity = [words(item?.brand), words(item?.title), words(item?.size)].filter(Boolean).join(' · ');
+  return `Analizza il video dei risultati Vinted e stima il prezzo target per questo articolo: ${identity || 'articolo MXLAB'}.
+
+Filtri usati: ${filters || 'non indicati'}.
+
+Dimmi il prezzo che compare più spesso tra gli articoli realmente simili al mio. Considera con maggiore importanza quelli con più cuori, ma escludi gli annunci chiaramente non comparabili per modello, condizioni, taglia o caratteristiche. Non usare il prezzo comprensivo della Protezione acquisti.
+
+Restituisci in prima riga soltanto: PREZZO TARGET: [importo] €. Poi aggiungi una spiegazione molto breve.`;
+}
+
+export function getPlatformState(item, platformId) {
+  const listing = normalizeListing(item?.listing);
+  if (listing.platformStates[platformId]) return listing.platformStates[platformId];
+  return listing.completedPlatforms[platformId] ? 'live' : 'todo';
+}
+
+export function setPlatformState(item, platformId, state = 'todo') {
+  const listing = normalizeListing(item?.listing);
+  if (!platformMap.has(platformId)) return listing;
+  const normalized = normalizePlatformState(state);
+  if (normalized === 'todo') delete listing.platformStates[platformId];
+  else listing.platformStates[platformId] = normalized;
+  if (normalized === 'live') listing.completedPlatforms[platformId] = true;
+  else delete listing.completedPlatforms[platformId];
+  listing.updatedAt = new Date().toISOString();
+  return listing;
 }
 
 function lineValue(text, label) {
@@ -363,11 +448,7 @@ export function formatListingText(platformId, content) {
 }
 
 export function markPlatformComplete(item, platformId, complete = true) {
-  const listing = normalizeListing(item?.listing);
-  listing.completedPlatforms[platformId] = Boolean(complete);
-  if (!complete) delete listing.completedPlatforms[platformId];
-  listing.updatedAt = new Date().toISOString();
-  return listing;
+  return setPlatformState(item, platformId, complete ? 'live' : 'todo');
 }
 
 export function createRemovalChecklist(item, soldPlatformLabel) {

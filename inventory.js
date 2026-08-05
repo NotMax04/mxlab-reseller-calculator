@@ -2,7 +2,7 @@ import { normalizeListing } from './listing.js';
 
 export const ITEM_STATUSES = Object.freeze({
   prep: { label: 'Da preparare', short: 'Preparare', order: 0 },
-  photo: { label: 'Da fotografare', short: 'Foto', order: 1 },
+  photo: { label: 'Foto pronte', short: 'Foto', order: 1 },
   publish: { label: 'Da pubblicare', short: 'Pubblicare', order: 2 },
   live: { label: 'Pubblicato', short: 'Online', order: 3 },
   sold: { label: 'Venduto', short: 'Venduto', order: 4 },

@@ -1,21 +1,30 @@
-# MXLAB Reseller Hub v3.2.1
+# MXLAB Reseller Hub v3.3.0
 
-App web installabile su iPhone per gestire inventario, prezzi, fotografie, generazione annunci e cross-listing MXLAB.
+App web installabile su iPhone per gestire il flusso operativo MXLAB dall'articolo con fotografie pronte fino alla pubblicazione e alla vendita.
 
-## Novità v3.2
+## Flusso v3.3
 
-- Generazione completamente gratuita dei tre titoli e della descrizione tramite Apple Intelligence e Comandi Rapidi.
-- Istruzioni complete del progetto annunci MXLAB incorporate automaticamente nel brief.
-- Le fotografie vengono condivise dal relativo articolo senza passare da Galleria o ChatGPT.
-- Campo unico per misure e informazioni scritte prioritarie.
-- Importazione del risultato dagli appunti con riconoscimento automatico dei tre titoli e della descrizione.
-- Titoli modificabili direttamente nell'app con limiti 100, 50 e 80 caratteri.
-- Nessuna chiave API, nessun server e nessun costo per generazione.
-- Compatibilità con inventario, fotografie e backup delle versioni precedenti.
+1. Crea l'articolo; il prezzo target può restare vuoto.
+2. Lo Studio annuncio si apre automaticamente.
+3. Importa le fotografie definitive dalla galleria.
+4. Genera e importa i tre titoli e la descrizione tramite il comando rapido gratuito `MXLAB Annuncio`.
+5. Avvia la ricerca Vinted: l'app apre una ricerca testuale già compilata e copia negli appunti la richiesta per l'analisi del video in ChatGPT.
+6. Registra i risultati Vinted, allega il video nella stessa chat e incolla la richiesta già copiata.
+7. Inserisci nell'app il prezzo target restituito: tutti i prezzi multipiattaforma vengono calcolati automaticamente.
+8. Prepara le bozze e imposta ogni piattaforma su `Da fare`, `Bozza` oppure `Online`.
+9. Usa i quattro messaggi rapidi per preferiti, offerta accettata, ritiro e recensione.
 
-## Configurazione gratuita
+## Principi
 
-La prima volta si crea sul proprio iPhone un comando rapido denominato `MXLAB Annuncio` con le azioni indicate nella guida integrata. In seguito il flusso è: Foto → Genera → seleziona il comando → Importa risultato.
+- La generazione delle fotografie resta fuori dall'app perché il flusso gratuito interno sarebbe più lento.
+- Titoli, descrizione, target, prezzi, bozze e stato delle piattaforme restano nella scheda dell'articolo: non serve usare Note.
+- La ricerca Vinted resta assistita e controllata dall'utente per non perdere qualità.
+- Nessuna API a pagamento e nessun server.
+- Dati e fotografie restano archiviati localmente sul dispositivo.
+
+## Compatibilità
+
+L'aggiornamento mantiene inventario, storico, fotografie, formule, impostazioni e dati delle versioni precedenti. I vecchi stati `completato` delle piattaforme vengono interpretati come `Online`.
 
 ## Test
 
@@ -26,11 +35,3 @@ npm test
 ## Pubblicazione
 
 Caricare tutti i file nella radice del repository GitHub Pages.
-
-
-## Correzione v3.2.1
-
-- Wallapop viene aperto nel Safari reale tramite un collegamento dedicato, così usa la sessione web persistente anziché il contenitore isolato della PWA.
-- Rimosso il collegamento personalizzato non valido di Vestiaire Collective che causava l'errore iniziale.
-- Vestiaire viene aperto tramite il collegamento HTTPS ufficiale di vendita nello stesso gesto dell'utente, consentendo a iOS di gestirlo come Universal Link e aprire l'app quando supportato.
-- Nessuna modifica ai dati, alle fotografie, al generatore IA o alle formule dei prezzi.

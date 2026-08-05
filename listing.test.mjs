@@ -2,14 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { calculateMXLABPrices } from './calculator.js';
 import {
+  buildVintedPriceAnalysisPrompt,
+  buildVintedSearchUrl,
   createRemovalChecklist,
   generateBaseDescription,
   generatePlatformContent,
   generateTitleVariants,
   getPlatform,
+  getPlatformState,
   getPublishPlan,
+  getVintedFilterSummary,
   listingReadiness,
   normalizeListing,
+  setPlatformState,
 } from './listing.js';
 
 const item = {
@@ -120,4 +125,30 @@ test('usa i titoli generati dall’IA al posto delle proposte locali', () => {
   ];
   const titles = generateTitleVariants({ ...item, listing: { ...item.listing, generatedTitles: generated } });
   assert.deepEqual(titles, generated);
+});
+
+
+test('prepara la ricerca Vinted e il prompt per analizzare la registrazione', () => {
+  const url = buildVintedSearchUrl(item);
+  assert.match(url, /^https:\/\/www\.vinted\.it\/catalog\?/);
+  const query = new URL(url).searchParams.get('search_text');
+  assert.match(query, /Carhartt/);
+  assert.match(query, /Bermuda cargo/);
+  const filters = getVintedFilterSummary(item);
+  assert.ok(filters.some((entry) => entry.label === 'Brand' && entry.value === 'Carhartt'));
+  const prompt = buildVintedPriceAnalysisPrompt(item);
+  assert.match(prompt, /più cuori/i);
+  assert.match(prompt, /Protezione acquisti/i);
+  assert.match(prompt, /PREZZO TARGET/i);
+});
+
+test('gestisce separatamente piattaforme da fare, in bozza e online', () => {
+  const draftListing = setPlatformState(item, 'ebay', 'draft');
+  const draftItem = { ...item, listing: draftListing };
+  assert.equal(getPlatformState(draftItem, 'ebay'), 'draft');
+  assert.equal(draftListing.completedPlatforms.ebay, undefined);
+  const liveListing = setPlatformState(draftItem, 'ebay', 'live');
+  const liveItem = { ...item, listing: liveListing };
+  assert.equal(getPlatformState(liveItem, 'ebay'), 'live');
+  assert.equal(liveListing.completedPlatforms.ebay, true);
 });
