@@ -1,5 +1,6 @@
 import { isGeneratedTitleSet, normalizeGeneratedTitles } from './mxlab-ai.js';
 import { inferVintedGender, normalizeVintedKey, resolveVintedBrand, resolveVintedCategory, resolveVintedColors, resolveVintedCondition, resolveVintedSize } from './vinted-data.js';
+import { normalizeVintedAnalysis } from './vinted-price-ai.js';
 
 const PLATFORM_DEFINITIONS = [
   {
@@ -194,10 +195,16 @@ export function normalizeListing(value = {}) {
           .map((entry) => ({ platformId: entry.platformId, done: Boolean(entry.done) }))
       : [],
     photoCount: Math.max(0, Math.trunc(Number(listing.photoCount) || 0)),
+    // Campi legacy della ricerca filtrata: mantenuti soltanto per compatibilità con i backup precedenti.
     vintedSearchQuery: String(listing.vintedSearchQuery || '').trim(),
     vintedGender: ['women', 'men'].includes(listing.vintedGender) ? listing.vintedGender : '',
     vintedResearchStarted: Boolean(listing.vintedResearchStarted),
     vintedVideoReady: Boolean(listing.vintedVideoReady),
+    vintedVideoName: String(listing.vintedVideoName || '').trim(),
+    vintedVideoSize: Math.max(0, Math.trunc(Number(listing.vintedVideoSize) || 0)),
+    vintedVideoDuration: Math.max(0, Number(listing.vintedVideoDuration) || 0),
+    vintedVideoSelectedAt: String(listing.vintedVideoSelectedAt || ''),
+    vintedAnalysis: normalizeVintedAnalysis(listing.vintedAnalysis),
     vintedSuggestedTarget: Math.max(0, Number(String(listing.vintedSuggestedTarget ?? '').replace(',', '.')) || 0),
     vintedResearchUpdatedAt: String(listing.vintedResearchUpdatedAt || ''),
     pricesConfirmed: Boolean(listing.pricesConfirmed),

@@ -166,3 +166,27 @@ test('chiede il reparto quando non può determinare la tabella taglie Vinted', (
   assert.equal(plan.size, null);
   assert.equal(plan.filters.find((filter) => filter.label === 'Reparto').applied, false);
 });
+
+test('preserva il risultato strutturato dell’analisi video Vinted', () => {
+  const listing = normalizeListing({
+    vintedVideoReady: true,
+    vintedVideoName: 'comparabili.mov',
+    vintedVideoSize: 123456,
+    vintedVideoDuration: 54,
+    vintedAnalysis: {
+      status: 'ok',
+      target: 16,
+      mode: 15,
+      weighted: 16.5,
+      rangeMin: 14,
+      rangeMax: 18,
+      validCount: 19,
+      confidence: 'Alta',
+      reason: 'Campione coerente.',
+    },
+  });
+  assert.equal(listing.vintedVideoReady, true);
+  assert.equal(listing.vintedVideoName, 'comparabili.mov');
+  assert.equal(listing.vintedAnalysis.target, 16);
+  assert.equal(listing.vintedAnalysis.confidence, 'Alta');
+});

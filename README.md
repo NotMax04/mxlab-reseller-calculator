@@ -1,42 +1,65 @@
-# MXLAB Reseller Hub v3.4.2
+# MXLAB Reseller Hub v3.5.0
 
-PWA locale per iPhone che organizza il processo MXLAB nello stesso ordine operativo usato per creare e pubblicare gli annunci.
+PWA locale per iPhone che segue il processo operativo MXLAB dalla fotografia già pronta fino alla vendita.
 
 ## Flusso principale
 
-1. **Lavorazione**
-   - importa le fotografie definitive già create in ChatGPT;
-   - registra dati, misure e condizioni;
-   - mantiene costo, data e fornitore in una sezione facoltativa, compilabile anche alla vendita;
-   - genera o importa tre titoli e descrizione con `MXLAB Annuncio`;
-   - apre la ricerca Vinted e prepara il messaggio per l'analisi del video;
-   - inserisce il target una volta sola e calcola i prezzi multipiattaforma;
-   - prepara bozze e pubblica gli annunci.
-2. **Pubblicati**
-   - raccoglie gli articoli online;
-   - permette di registrarne la vendita.
-3. **Venduti**
-   - salva la vendita soltanto dopo che è avvenuta;
-   - permette di completare il costo di acquisto in quel momento;
+1. **Foto e dati**
+   - importa le fotografie definitive già create nel progetto ChatGPT;
+   - registra brand, tipologia, taglia, condizioni, misure e note;
+   - mantiene costo, data e fornitore facoltativi e compilabili anche alla vendita.
+2. **Titoli e descrizione**
+   - genera o importa i tre titoli e la descrizione tramite `MXLAB Annuncio`;
+   - conserva tutto nella scheda dell'articolo, senza usare Note.
+3. **Comparabili Vinted**
+   - l'utente esegue la ricerca manuale su Vinted con i filtri più precisi;
+   - registra lo scorrimento dei risultati;
+   - seleziona il video direttamente nella scheda;
+   - il comando `MXLAB Prezzo` analizza l'intero video, deduplica gli annunci, pesa somiglianza e cuori, esclude gli outlier e restituisce un risultato strutturato;
+   - l'app importa target, fascia centrale, prezzo più frequente, prezzo ponderato, campione e affidabilità.
+4. **Prezzi**
+   - usa il target confermato una sola volta;
+   - applica le formule ufficiali MXLAB a tutte le piattaforme.
+5. **Pubblicazione**
+   - copia titoli, descrizione e prezzi;
+   - apre le piattaforme;
+   - registra gli stati Da fare, Bozza e Online.
+6. **Vendita**
+   - viene registrata soltanto quando avviene;
    - calcola profitto e moltiplicatore;
-   - copia una riga pronta per Fogli Google.
-4. **Messaggi**
-   - contiene le risposte rapide per preferiti, offerte, ritiro e recensione.
-5. **Dati**
-   - backup, CSV, impostazioni e calcolatore manuale secondario.
+   - copia la riga pronta per Fogli Google.
 
-La generazione delle fotografie non è inclusa: rimane nel progetto ChatGPT dedicato perché il passaggio dentro l'app non riduceva il tempo di lavoro.
+## Comandi Rapidi
 
-## Principi della versione 3.4
+### MXLAB Annuncio
 
-- Nessuna sezione Prezzi iniziale.
-- Nessuna sezione Inventario collocata prima della pubblicazione.
-- Un solo percorso lineare per ciascun articolo: `Dati → Annuncio → Ricerca → Prezzi → Pubblica`.
-- Titoli e descrizione restano nella scheda dell'articolo, senza passare dalle Note.
+Riceve le fotografie definitive, usa il prompt negli appunti e restituisce tre titoli più descrizione.
+
+### MXLAB Prezzo
+
+Riceve il video dei comparabili Vinted, usa il prompt negli appunti e copia negli appunti un output con dieci righe:
+
+- stato;
+- prezzo target;
+- prezzo più frequente;
+- prezzo ponderato;
+- fascia centrale;
+- annunci letti;
+- annunci validi;
+- annunci scartati;
+- affidabilità e motivo.
+
+Il video non viene duplicato nell'archivio della PWA: resta nell'app Foto o in File. La PWA conserva soltanto nome, dimensione, durata e risultato dell'analisi.
+
+## Principi
+
+- Nessuna generazione fotografica dentro MXHUB.
+- Nessuna ricerca Vinted automatica o filtro URL fragile.
+- Il metodo manuale di selezione dei comparabili resta invariato per non perdere qualità.
+- L'automazione interviene soltanto nell'analisi del video e nella gestione del risultato.
 - Le formule ufficiali MXLAB non sono state modificate.
-- Wallapop continua ad aprirsi nel Safari reale; Vestiaire usa il collegamento HTTPS di vendita.
-- Dati, fotografie, storico e backup delle versioni precedenti restano compatibili.
-- Funzionamento locale, senza server e senza costi aggiuntivi.
+- I dati delle versioni precedenti restano compatibili.
+- Funzionamento locale, senza server e senza API a pagamento.
 
 ## Test
 
@@ -47,17 +70,3 @@ npm test
 ## Pubblicazione
 
 Caricare i file nella radice del repository GitHub Pages e pubblicare dalla branch `main`, cartella `/ (root)`.
-
-
-## Ricerca Vinted v3.4.2
-
-- usa `%20` per gli spazi: l’app Vinted non riceve più segni `+` letterali;
-- applica realmente categoria, brand, taglia, condizioni e colori quando riconosciuti;
-- mostra prima dell’apertura quali filtri sono applicati e quali no;
-- consente di correggere il reparto Donna/Uomo;
-- non applica materiali stimati o privi di etichetta composizione.
-
-
-### Correzione v3.4.2
-
-La ricerca comparabili viene forzata in Safari. L’app Vinted su iOS conservava categoria e brand dal percorso ma scartava taglia, condizioni e colori presenti nella query e mostrava gli spazi come segni `+`. Safari mantiene la ricerca testuale e tutti i parametri del catalogo. Il conteggio mostra soltanto i filtri effettivi del pannello Vinted, senza contare il reparto.
