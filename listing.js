@@ -198,6 +198,8 @@ export function normalizeListing(value = {}) {
     vintedVideoReady: Boolean(listing.vintedVideoReady),
     vintedSuggestedTarget: Math.max(0, Number(String(listing.vintedSuggestedTarget ?? '').replace(',', '.')) || 0),
     vintedResearchUpdatedAt: String(listing.vintedResearchUpdatedAt || ''),
+    pricesConfirmed: Boolean(listing.pricesConfirmed),
+    publishedAt: String(listing.publishedAt || ''),
     updatedAt: String(listing.updatedAt || ''),
   };
 }

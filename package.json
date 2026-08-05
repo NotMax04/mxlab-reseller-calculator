@@ -1,9 +1,1 @@
-{
-  "name": "mxlab-reseller-hub",
-  "version": "3.3.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "test": "node --test"
-  }
-}
+{"name":"mxlab-reseller-hub","private":true,"version":"3.4.0","type":"module","scripts":{"test":"node --test *.test.mjs"}}
