@@ -7,18 +7,18 @@ const moneyNumber = (value) => {
 
 export const MXLAB_PRICE_SHORTCUT_NAME = 'MXLAB Prezzo';
 
-export const MXLAB_PRICE_SHORTCUT_PROMPT = `Analizza integralmente il video ricevuto come Input rapido. Leggi anche gli Appunti: contengono le istruzioni vincolanti e i dati dell'articolo da valutare. Esamina il video dall'inizio alla fine, deduplica gli annunci che ricompaiono durante lo scorrimento e restituisci esclusivamente il formato richiesto, senza commenti prima o dopo.`;
+export const MXLAB_PRICE_SHORTCUT_PROMPT = `Analizza tutte le immagini ricevute come Input rapido. Sono fotogrammi cronologici estratti automaticamente da una registrazione dei risultati Vinted. Leggi anche gli Appunti: contengono le istruzioni vincolanti e i dati dell'articolo da valutare. Deduplica gli annunci che ricompaiono in più immagini e restituisci esclusivamente il formato richiesto, senza commenti prima o dopo.`;
 
 export const MXLAB_PRICE_ANALYSIS_RULES = `AGISCI COME ANALISTA PREZZI VINTED PER RESELLING.
 
 OBIETTIVO
 
-Analizza il video dei risultati Vinted e determina un prezzo target realistico per l'articolo indicato. Il prezzo target deve rappresentare il valore centrale degli annunci realmente comparabili, con maggiore importanza per quelli che hanno più cuori, senza lasciare che un singolo annuncio molto popolare alteri da solo il risultato.
+Analizza la sequenza di fotogrammi dei risultati Vinted e determina un prezzo target realistico per l'articolo indicato. Il prezzo target deve rappresentare il valore centrale degli annunci realmente comparabili, con maggiore importanza per quelli che hanno più cuori, senza lasciare che un singolo annuncio molto popolare alteri da solo il risultato.
 
-ANALISI DEL VIDEO
+ANALISI DEI FOTOGRAMMI
 
-1. Guarda l'intero video dall'inizio alla fine e considera tutti gli annunci leggibili.
-2. Deduplica gli annunci: lo stesso annuncio può ricomparire durante lo scorrimento e va contato una sola volta usando foto, titolo, prezzo e posizione come riferimenti.
+1. Esamina tutte le immagini nell'ordine ricevuto e considera tutti gli annunci leggibili. I nomi dei file indicano ordine e momento della registrazione.
+2. Deduplica gli annunci: lo stesso annuncio può ricomparire in fotogrammi consecutivi durante lo scorrimento e va contato una sola volta usando foto, titolo, prezzo e posizione come riferimenti.
 3. Leggi soltanto il prezzo dell'articolo. Ignora Protezione acquisti, spedizione, totale, prezzo barrato precedente e rate.
 4. Leggi il numero di cuori quando visibile. Se non è leggibile, non inventarlo.
 5. Non inventare prezzi, cuori o caratteristiche nascoste.
@@ -61,9 +61,9 @@ AFFIDABILITÀ
 
 • ALTA: almeno 12 annunci validi, testo leggibile e risultati coerenti.
 • MEDIA: 6–11 annunci validi oppure qualche incertezza.
-• BASSA: meno di 6 annunci validi, video poco leggibile o comparabili molto eterogenei.
+• BASSA: meno di 6 annunci validi, fotogrammi poco leggibili o comparabili molto eterogenei.
 
-Se il video non consente una valutazione seria, non inventare un prezzo. Usa STATO: INSUFFICIENTE e PREZZO_TARGET: 0 €.
+Se i fotogrammi non consentono una valutazione seria, non inventare un prezzo. Usa STATO: INSUFFICIENTE e PREZZO_TARGET: 0 €.
 
 OUTPUT OBBLIGATORIO
 
@@ -97,7 +97,7 @@ function itemDetails(item = {}) {
 }
 
 export function buildMXLABPriceAIInput(item = {}) {
-  return `${MXLAB_PRICE_ANALYSIS_RULES}\n\nARTICOLO DA VALUTARE\n\n${itemDetails(item)}\n\nAnalizza il video ricevuto insieme a questi dati. Le informazioni scritte sull'articolo hanno priorità. Restituisci soltanto le dieci righe dell'OUTPUT OBBLIGATORIO.`;
+  return `${MXLAB_PRICE_ANALYSIS_RULES}\n\nARTICOLO DA VALUTARE\n\n${itemDetails(item)}\n\nAnalizza tutti i fotogrammi ricevuti insieme a questi dati. Le informazioni scritte sull'articolo hanno priorità. Restituisci soltanto le dieci righe dell'OUTPUT OBBLIGATORIO.`;
 }
 
 function field(raw, label) {

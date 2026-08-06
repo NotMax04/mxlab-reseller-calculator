@@ -1,4 +1,4 @@
-# MXLAB Reseller Hub v3.5.0
+# MXLAB Reseller Hub v3.5.1
 
 PWA locale per iPhone che segue il processo operativo MXLAB dalla fotografia già pronta fino alla vendita.
 
@@ -56,7 +56,7 @@ Il video non viene duplicato nell'archivio della PWA: resta nell'app Foto o in F
 - Nessuna generazione fotografica dentro MXHUB.
 - Nessuna ricerca Vinted automatica o filtro URL fragile.
 - Il metodo manuale di selezione dei comparabili resta invariato per non perdere qualità.
-- L'automazione interviene soltanto nell'analisi del video e nella gestione del risultato.
+- L'automazione interviene soltanto nell'analisi dei fotogrammi estratti dal video e nella gestione del risultato.
 - Le formule ufficiali MXLAB non sono state modificate.
 - I dati delle versioni precedenti restano compatibili.
 - Funzionamento locale, senza server e senza API a pagamento.
