@@ -74,14 +74,48 @@ test('genera una descrizione base soltanto con dati disponibili', () => {
 });
 
 test('genera titoli, descrizioni e prezzi specifici per piattaforma', () => {
-  const contents = generatePlatformContent(item, calculateMXLABPrices(15));
+  const model = calculateMXLABPrices(15);
+  const contents = generatePlatformContent(item, model);
   assert.equal(contents.vinted.price, 18.9);
   assert.equal(contents.ebay.price, 24.9);
   assert.equal(contents.grailed.price, 28);
+  assert.equal(contents.depop.price, model.prices.depopBoost);
+  assert.notEqual(contents.depop.price, model.prices.depop);
   assert.ok(contents.ebay.title.length <= 80);
   assert.match(contents.depop.description, /#/);
   assert.match(contents.grailed.description, /Taglia M/);
   assert.match(contents.vinted.description, /cotone ripstop/i);
+});
+
+test('mantiene righe vuote e impaginazione della descrizione importata', () => {
+  const formatted = {
+    ...item,
+    listing: {
+      ...item.listing,
+      baseDescription: [
+        'Misure: Spalle 43 cm',
+        '',
+        'Materiale: Cotone',
+        '',
+        'Taglia: M',
+        '',
+        'Colore: Verde',
+        '',
+        'Condizioni: Ottime',
+        '',
+        'Spedizione veloce 🚚 o ritiro a mano a Burago di Molgora 📍',
+        '',
+        'Scrivimi per info, misure o altro',
+        '',
+        'Prezzo trattabile!',
+        '',
+        '#Carhartt #Shorts #M',
+      ].join('\n'),
+    },
+  };
+  const contents = generatePlatformContent(formatted, calculateMXLABPrices(15));
+  assert.match(contents.vinted.description, /Misure: Spalle 43 cm\n\nMateriale: Cotone/);
+  assert.match(contents.vinted.description, /Prezzo trattabile!\n\n#Carhartt/);
 });
 
 test('considera pronta la scheda con cinque foto e dati completi', () => {

@@ -511,7 +511,7 @@ export function generateBaseDescription(item) {
 
   const tags = hashtags(item);
   if (tags) lines.push(tags);
-  return lines.filter(Boolean).join('\n');
+  return lines.filter(Boolean).join('\n\n');
 }
 
 function hashtags(item) {
@@ -523,13 +523,17 @@ function hashtags(item) {
 }
 
 function standardizeDescription(item, value) {
-  let text = String(value || '').trim();
-  // Rimuove formule vietate dal progetto senza inventare una condizione alternativa.
-  text = text
-    .split(/\n+|(?<=[.!?])\s+/)
-    .map((part) => part.trim())
-    .filter((part) => part && !/(?:nessun difetto|senza difetti)/i.test(part))
+  // Mantiene esattamente gli a capo preparati nello Studio annuncio.
+  // Normalizziamo soltanto il formato delle interruzioni di riga e rimuoviamo
+  // le formule vietate, senza ricomporre il testo in un blocco unico.
+  let text = String(value || '')
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line
+      .replace(/(?:nessun difetto|senza difetti)[^.!?\n]*[.!?]?/ig, '')
+      .replace(/[ \t]+$/g, ''))
     .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
 
   const additions = [];
@@ -540,7 +544,10 @@ function standardizeDescription(item, value) {
     const tags = hashtags(item);
     if (tags) additions.push(tags);
   }
-  return [text, ...additions].filter(Boolean).join('\n');
+
+  // Ogni aggiunta è separata da una riga vuota, così l'incolla nelle piattaforme
+  // conserva una descrizione leggibile invece di compattare tutte le righe.
+  return [text, ...additions].filter(Boolean).join('\n\n');
 }
 
 export function generatePlatformContent(item, priceModel) {
@@ -556,7 +563,7 @@ export function generatePlatformContent(item, priceModel) {
     subito: { title: shortTitle, description: base, price: prices.subito, currency: 'EUR' },
     facebook: { title: vintedTitle, description: base, price: prices.facebook, currency: 'EUR' },
     vestiaire: { title: vintedTitle, description: base, price: prices.vestiaire, currency: 'EUR' },
-    depop: { title: truncate(vintedTitle, 80), description: base, price: prices.depop, boostPrice: prices.depopBoost, currency: 'EUR' },
+    depop: { title: truncate(vintedTitle, 80), description: base, price: prices.depopBoost, boostPrice: prices.depopBoost, currency: 'EUR' },
     grailed: { title: truncate(vintedTitle, 80), description: base, price: prices.grailed, currency: 'USD' },
   };
 }

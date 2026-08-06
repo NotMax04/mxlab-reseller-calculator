@@ -1,1 +1,1 @@
-{"name":"mxlab-reseller-hub","private":true,"version":"3.5.1","type":"module","scripts":{"test":"node --test *.test.mjs"}}
+{"name":"mxlab-reseller-hub","private":true,"version":"3.5.2","type":"module","scripts":{"test":"node --test *.test.mjs"}}

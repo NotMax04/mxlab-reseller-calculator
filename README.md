@@ -1,4 +1,13 @@
-# MXLAB Reseller Hub v3.5.1
+# MXLAB Reseller Hub v3.5.2
+
+## Novità v3.5.2
+
+- Depop usa sempre il prezzo con boost; la variante senza boost non viene più mostrata.
+- Nella pubblicazione il prezzo resta visibile ma non ha più un pulsante di copia.
+- I pulsanti di titolo e descrizione mostrano chiaramente `✓ Copiato` dopo il tocco.
+- Il pulsante `Apri` non sovrascrive più gli appunti.
+- Le descrizioni mantengono gli a capo e le righe vuote preparate nello Studio annuncio.
+
 
 PWA locale per iPhone che segue il processo operativo MXLAB dalla fotografia già pronta fino alla vendita.
 
