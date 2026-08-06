@@ -126,15 +126,14 @@ test('considera pronta la scheda con cinque foto e dati completi', () => {
   assert.equal(incomplete.ready, false);
 });
 
-test('apre direttamente i moduli di vendita e conserva le sessioni web necessarie', () => {
-  assert.equal(getPlatform('ebay').launchMode, 'universal');
-  assert.equal(getPlatform('ebay').webUrl, 'https://www.ebay.it/sl/prelist');
-  assert.equal(getPlatform('facebook').launchMode, 'safari');
-  assert.equal(getPlatform('facebook').appUrl, undefined);
+test('apre ogni piattaforma con il percorso più stabile verificato su iPhone', () => {
+  assert.equal(getPlatform('ebay').launchMode, 'native');
+  assert.equal(getPlatform('ebay').appUrl, 'ebay://');
+  assert.equal(getPlatform('facebook').launchMode, 'native');
+  assert.equal(getPlatform('facebook').appUrl, 'fb://marketplace');
   assert.equal(getPlatform('facebook').webUrl, 'https://www.facebook.com/marketplace/create/item');
-  assert.match(getPlatform('facebook').safariUrl, /^x-safari-https:\/\/www\.facebook\.com\/marketplace\/create\/item$/);
   assert.equal(getPlatform('depop').launchMode, 'universal');
-  assert.equal(getPlatform('depop').webUrl, 'https://www.depop.com/products/create/');
+  assert.equal(getPlatform('depop').webUrl, 'https://www.depop.com/sell/');
   assert.equal(getPlatform('wallapop').launchMode, 'safari');
   assert.match(getPlatform('wallapop').safariUrl, /^x-safari-https:\/\/it\.wallapop\.com\/app\/catalog\/upload$/);
   assert.equal(getPlatform('vestiaire').launchMode, 'universal');

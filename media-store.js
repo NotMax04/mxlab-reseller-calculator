@@ -131,3 +131,113 @@ export function photoToFile(photo) {
 export async function clearAllPhotos() {
   await withStore('readwrite', (store) => store.clear());
 }
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error || new Error('Lettura foto fallita'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+export function dataUrlToBlob(dataUrl, fallbackType = 'image/jpeg') {
+  const source = String(dataUrl || '');
+  const match = /^data:([^;,]+)?(;base64)?,(.*)$/s.exec(source);
+  if (!match) throw new Error('Foto backup non valida');
+  const type = match[1] || fallbackType;
+  const isBase64 = Boolean(match[2]);
+  const payload = match[3] || '';
+  const binary = isBase64 ? atob(payload) : decodeURIComponent(payload);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return new Blob([bytes], { type });
+}
+
+export async function getAllPhotos() {
+  const database = await openDatabase();
+  try {
+    const transaction = database.transaction(STORE_NAME, 'readonly');
+    const rows = await requestResult(transaction.objectStore(STORE_NAME).getAll());
+    return rows.sort((a, b) => String(a.itemId).localeCompare(String(b.itemId)) || (a.order || 0) - (b.order || 0));
+  } finally {
+    database.close();
+  }
+}
+
+export async function exportPhotosForBackup(onProgress = null) {
+  const photos = await getAllPhotos();
+  const output = [];
+  for (let index = 0; index < photos.length; index += 1) {
+    const photo = photos[index];
+    output.push({
+      id: photo.id,
+      itemId: photo.itemId,
+      name: photo.name,
+      type: photo.type || photo.blob?.type || 'image/jpeg',
+      order: Number(photo.order) || 0,
+      createdAt: photo.createdAt || new Date().toISOString(),
+      size: Number(photo.blob?.size) || 0,
+      dataUrl: await blobToDataUrl(photo.blob),
+    });
+    onProgress?.(index + 1, photos.length);
+  }
+  return output;
+}
+
+export function validatePhotoBackupEntries(entries) {
+  if (!Array.isArray(entries)) throw new Error('Archivio foto non valido');
+  const seen = new Set();
+  return entries.map((entry, index) => {
+    if (!entry || !entry.id || !entry.itemId || !entry.dataUrl) {
+      throw new Error(`Foto backup incompleta alla posizione ${index + 1}`);
+    }
+    const id = String(entry.id);
+    if (seen.has(id)) throw new Error(`Foto duplicata nel backup: ${id}`);
+    seen.add(id);
+    const blob = dataUrlToBlob(entry.dataUrl, entry.type);
+    if (!blob.size) throw new Error(`Foto backup vuota alla posizione ${index + 1}`);
+    return {
+      id,
+      itemId: String(entry.itemId),
+      blob,
+      name: String(entry.name || `${entry.itemId}-${index + 1}.jpg`),
+      type: String(entry.type || blob.type || 'image/jpeg'),
+      order: Number(entry.order) || 0,
+      createdAt: String(entry.createdAt || new Date().toISOString()),
+    };
+  });
+}
+
+export async function getPhotoCounts() {
+  const counts = {};
+  for (const photo of await getAllPhotos()) {
+    const key = String(photo.itemId);
+    counts[key] = (counts[key] || 0) + 1;
+  }
+  return counts;
+}
+
+export async function restorePhotosFromBackup(entries, { replace = true, onProgress = null } = {}) {
+  // Validiamo tutto prima di cancellare l'archivio esistente: un backup corrotto
+  // non deve mai eliminare le fotografie già presenti sul dispositivo.
+  const records = validatePhotoBackupEntries(entries);
+  const database = await openDatabase();
+  try {
+    const transaction = database.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    if (replace) store.clear();
+    records.forEach((record, index) => {
+      store.put(record);
+      onProgress?.(index + 1, records.length);
+    });
+    await new Promise((resolve, reject) => {
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error || new Error('Ripristino foto fallito'));
+      transaction.onabort = transaction.onerror;
+    });
+  } finally {
+    database.close();
+  }
+  return records.length;
+}
