@@ -1,44 +1,65 @@
-# MXLAB Reseller Hub v3.5.6
+# MXLAB Reseller Hub v3.5.1
 
-PWA locale per iPhone che segue il processo operativo MXLAB dalle foto già pronte fino alla vendita.
+PWA locale per iPhone che segue il processo operativo MXLAB dalla fotografia già pronta fino alla vendita.
 
 ## Flusso principale
 
-1. **Foto e dati** — importa le immagini definitive e registra brand, tipologia, taglia, condizioni, misure e note.
-2. **Titoli e descrizione** — usa `MXLAB Annuncio` e conserva i testi nella scheda dell'articolo.
-3. **Comparabili Vinted** — seleziona la registrazione schermo; MXHUB estrae fotogrammi statici e `MXLAB Prezzo` restituisce target, fascia e affidabilità.
-4. **Prezzi** — applica le formule ufficiali MXLAB.
-5. **Pubblicazione** — copia titolo e descrizione, apre le piattaforme e registra Da fare, Bozza e Online.
-6. **Vendita** — registra la vendita soltanto quando avviene e prepara la riga per Fogli Google.
+1. **Foto e dati**
+   - importa le fotografie definitive già create nel progetto ChatGPT;
+   - registra brand, tipologia, taglia, condizioni, misure e note;
+   - mantiene costo, data e fornitore facoltativi e compilabili anche alla vendita.
+2. **Titoli e descrizione**
+   - genera o importa i tre titoli e la descrizione tramite `MXLAB Annuncio`;
+   - conserva tutto nella scheda dell'articolo, senza usare Note.
+3. **Comparabili Vinted**
+   - l'utente esegue la ricerca manuale su Vinted con i filtri più precisi;
+   - registra lo scorrimento dei risultati;
+   - seleziona il video direttamente nella scheda;
+   - il comando `MXLAB Prezzo` analizza l'intero video, deduplica gli annunci, pesa somiglianza e cuori, esclude gli outlier e restituisce un risultato strutturato;
+   - l'app importa target, fascia centrale, prezzo più frequente, prezzo ponderato, campione e affidabilità.
+4. **Prezzi**
+   - usa il target confermato una sola volta;
+   - applica le formule ufficiali MXLAB a tutte le piattaforme.
+5. **Pubblicazione**
+   - copia titoli, descrizione e prezzi;
+   - apre le piattaforme;
+   - registra gli stati Da fare, Bozza e Online.
+6. **Vendita**
+   - viene registrata soltanto quando avviene;
+   - calcola profitto e moltiplicatore;
+   - copia la riga pronta per Fogli Google.
 
-## Apertura piattaforme su iPhone
+## Comandi Rapidi
 
-- **eBay:** apre direttamente l'app eBay. Non esiste un collegamento pubblico stabile al modulo Nuova inserzione, quindi occorre toccare `Vendi` nell'app.
-- **Facebook Marketplace:** apre Marketplace nell'app Facebook tramite `fb://marketplace`, senza fallback automatico verso Safari. Occorre poi toccare `Vendi`.
-- **Depop:** usa il collegamento universale `/sell/`, che apre l'app senza la schermata di errore causata da `/products/create/`; occorre poi toccare `+`.
-- **Wallapop:** continua a usare Safari esterno per conservare la sessione web.
-- **Vestiaire:** continua a usare il collegamento universale già verificato.
+### MXLAB Annuncio
 
-Ogni scheda mostra direttamente il limite reale della piattaforma, così il flusso non promette un'apertura del modulo che l'app non espone.
+Riceve le fotografie definitive, usa il prompt negli appunti e restituisce tre titoli più descrizione.
 
-## Backup completo
+### MXLAB Prezzo
 
-Dalla v3.5.5 il backup JSON include e verifica:
+Riceve il video dei comparabili Vinted, usa il prompt negli appunti e copia negli appunti un output con dieci righe:
 
-- articoli;
-- vendite;
-- impostazioni;
-- tutte le fotografie archiviate in IndexedDB.
+- stato;
+- prezzo target;
+- prezzo più frequente;
+- prezzo ponderato;
+- fascia centrale;
+- annunci letti;
+- annunci validi;
+- annunci scartati;
+- affidabilità e motivo.
 
-Durante esportazione e importazione il pulsante mostra il progresso delle foto. Prima del ripristino tutte le immagini vengono validate; un backup corrotto non cancella più l'archivio locale. I backup precedenti senza immagini preservano le foto già presenti sul dispositivo, ma non possono ricrearle su un'installazione vuota.
+Il video non viene duplicato nell'archivio della PWA: resta nell'app Foto o in File. La PWA conserva soltanto nome, dimensione, durata e risultato dell'analisi.
 
 ## Principi
 
-- nessuna API a pagamento;
-- nessun server;
-- dati conservati sul dispositivo;
-- formule ufficiali MXLAB invariate;
-- compatibilità con i dati testuali delle versioni precedenti.
+- Nessuna generazione fotografica dentro MXHUB.
+- Nessuna ricerca Vinted automatica o filtro URL fragile.
+- Il metodo manuale di selezione dei comparabili resta invariato per non perdere qualità.
+- L'automazione interviene soltanto nell'analisi dei fotogrammi estratti dal video e nella gestione del risultato.
+- Le formule ufficiali MXLAB non sono state modificate.
+- I dati delle versioni precedenti restano compatibili.
+- Funzionamento locale, senza server e senza API a pagamento.
 
 ## Test
 
@@ -51,6 +72,10 @@ npm test
 Caricare i file nella radice del repository GitHub Pages e pubblicare dalla branch `main`, cartella `/ (root)`.
 
 
-## Recupero cache iPhone
+## v3.5.3
 
-Aprire `update.html` una sola volta per rimuovere esclusivamente le vecchie cache della PWA. La procedura non cancella localStorage o IndexedDB, quindi conserva articoli, impostazioni e fotografie.
+- Pagina Pubblicati ridisegnata e forzata a tutta larghezza.
+- Schede online più leggibili con titolo su due righe, dati essenziali e azioni separate.
+- eBay apre il pre-listing ufficiale.
+- Facebook Marketplace apre in Safari il modulo diretto per un articolo.
+- Depop apre il modulo diretto `products/create`.

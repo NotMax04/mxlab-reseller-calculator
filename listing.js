@@ -9,13 +9,9 @@ const PLATFORM_DEFINITIONS = [
   },
   {
     id: 'ebay', label: 'eBay', badge: 'eB', currency: 'EUR',
-    // eBay non documenta un deep link pubblico e stabile verso Nuova inserzione.
-    // Apriamo quindi l'app nativa, che permette di tornare a MXLAB con lo switch app.
-    appUrl: 'ebay://',
+    universalUrl: 'https://www.ebay.it/sl/prelist',
     webUrl: 'https://www.ebay.it/sl/prelist',
-    launchMode: 'native',
-    openLabel: 'Apri app',
-    openNote: 'Apre eBay. Poi tocca Vendi: il modulo diretto non è disponibile tramite un link stabile.',
+    launchMode: 'universal',
   },
   {
     id: 'wallapop', label: 'Wallapop', badge: 'W', currency: 'EUR',
@@ -31,13 +27,9 @@ const PLATFORM_DEFINITIONS = [
   },
   {
     id: 'facebook', label: 'Facebook Marketplace', badge: 'FB', currency: 'EUR',
-    // Il percorso /create viene ignorato da alcune versioni iOS e attiva il fallback web.
-    // Apriamo Marketplace nell'app senza fallback automatico verso Safari.
-    appUrl: 'fb://marketplace',
+    safariUrl: 'x-safari-https://www.facebook.com/marketplace/create/item',
     webUrl: 'https://www.facebook.com/marketplace/create/item',
-    launchMode: 'native',
-    openLabel: 'Apri app',
-    openNote: 'Apre Marketplace nell’app Facebook. Poi tocca Vendi: Meta non espone un link stabile al modulo Articolo.',
+    launchMode: 'safari',
   },
   {
     id: 'vestiaire', label: 'Vestiaire Collective', badge: 'VC', currency: 'EUR',
@@ -50,13 +42,9 @@ const PLATFORM_DEFINITIONS = [
   },
   {
     id: 'depop', label: 'Depop', badge: 'D', currency: 'EUR',
-    // /products/create apre una schermata di errore nell'app iOS.
-    // /sell è il collegamento più vicino che apre Depop senza errore.
-    universalUrl: 'https://www.depop.com/sell/',
-    webUrl: 'https://www.depop.com/sell/',
+    universalUrl: 'https://www.depop.com/products/create/',
+    webUrl: 'https://www.depop.com/products/create/',
     launchMode: 'universal',
-    openLabel: 'Apri app',
-    openNote: 'Apre Depop senza la schermata di errore. Poi tocca + per creare l’annuncio.',
   },
   {
     id: 'grailed', label: 'Grailed', badge: 'G', currency: 'USD',

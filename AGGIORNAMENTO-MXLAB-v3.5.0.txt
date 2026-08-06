@@ -1,0 +1,71 @@
+MXLAB Reseller Hub v3.5.0 — Comparabili Vinted tramite video
+
+PRIMA DI AGGIORNARE
+1. Apri MXLAB Hub.
+2. Vai in Dati.
+3. Esporta il backup completo JSON.
+
+FILE DA CARICARE
+- app.js
+- index.html
+- listing.js
+- listing.test.mjs
+- styles.css
+- sw.js
+- package.json
+- README.md
+- vinted-price-ai.js (NUOVO)
+- vinted-price-ai.test.mjs (NUOVO)
+
+PROCEDURA
+1. Estrai mxlab-reseller-hub-v3.5.0-patch.zip.
+2. Apri il repository GitHub di MXLAB Hub.
+3. Add file → Upload files.
+4. Carica tutti i file estratti.
+5. Conferma la sostituzione dei file esistenti e l'aggiunta dei due nuovi file.
+6. Commit directly to main.
+7. Messaggio commit: Integra analisi video comparabili v3.5.0
+8. Attendi GitHub Pages.
+9. Apri il sito in Safari e ricarica.
+10. Chiudi completamente MXLAB Hub dalle app recenti.
+11. Riaprilo dalla Home.
+12. Controlla in Dati che compaia Hub v3.5.0.
+
+COSA CAMBIA
+- Eliminata dall'interfaccia la ricerca Vinted filtrata tramite URL.
+- La fase 3 si chiama Comparabili Vinted.
+- Il video viene selezionato direttamente nella scheda dell'articolo.
+- Il video non viene duplicato nell'archivio della PWA.
+- Il nuovo comando MXLAB Prezzo riceve il video e restituisce:
+  prezzo target, prezzo più frequente, prezzo ponderato, fascia centrale,
+  annunci letti, validi, scartati, affidabilità e motivo.
+- L'app importa il risultato e precompila il target.
+- Resta disponibile un metodo manuale di riserva con prompt copiato e apertura ChatGPT.
+
+CONFIGURAZIONE MXLAB PREZZO
+1. Nell'app apri Dati → Configura MXLAB Prezzo.
+2. Crea in Comandi Rapidi un comando chiamato esattamente MXLAB Prezzo.
+3. Abilitalo nel foglio di condivisione per File multimediali o Video.
+4. Aggiungi Ottieni appunti.
+5. Aggiungi Usa modello e seleziona ChatGPT.
+6. Nel prompt inserisci il testo copiato dall'app e aggiungi:
+   - variabile Input rapido dopo VIDEO
+   - variabile Appunti dopo ISTRUZIONI COMPLETE
+7. Aggiungi Copia negli appunti usando la risposta di ChatGPT.
+8. Torna nell'app e spunta Ho configurato MXLAB Prezzo.
+
+PRIMO TEST
+1. Apri l'articolo già usato.
+2. Vai alla fase 3 Comparabili Vinted.
+3. Seleziona il video registrato.
+4. Premi Analizza video.
+5. Nel foglio di condivisione seleziona MXLAB Prezzo.
+6. Al termine torna nell'app.
+7. Premi Importa risultato.
+8. Controlla target, fascia, campione e affidabilità.
+9. Premi Salva target e continua.
+
+NOTA
+La possibilità del comando Usa modello di elaborare correttamente il video deve essere
+verificata sul tuo iPhone. Se non accetta il video, usa il Metodo manuale di riserva:
+il prompt resta identico e il risultato si importa nello stesso modo.

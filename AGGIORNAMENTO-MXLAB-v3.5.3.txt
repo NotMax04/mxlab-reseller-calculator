@@ -1,0 +1,53 @@
+MXLAB Reseller Hub v3.5.3 — Pubblicati e apertura moduli
+
+PRIMA DI AGGIORNARE
+1. Apri MXLAB Hub → Dati.
+2. Esporta il backup completo JSON.
+
+FILE DA CARICARE
+- app.js
+- index.html
+- listing.js
+- listing.test.mjs
+- styles.css
+- sw.js
+- package.json
+- README.md
+
+PROCEDURA
+1. Estrai mxlab-reseller-hub-v3.5.3-patch.zip.
+2. Nel repository GitHub: Add file → Upload files.
+3. Carica tutti gli 8 file e conferma la sostituzione.
+4. Commit directly to main.
+5. Messaggio commit: Migliora Pubblicati e moduli vendita v3.5.3
+6. Attendi GitHub Pages.
+7. Apri il sito in Safari e ricarica.
+8. Chiudi completamente MXLAB Hub dalle app recenti.
+9. Riaprilo dalla Home.
+10. Controlla in Dati che compaia Hub v3.5.3.
+
+MODIFICHE ALLA PAGINA PUBBLICATI
+- L'app e le viste sono forzate a usare tutta la larghezza disponibile.
+- Rimossa la ripetizione del titolo Pubblicati nel grande riquadro iniziale.
+- Riepilogo più compatto con articoli, valore target e annunci online.
+- Schede articolo ridisegnate:
+  titolo su massimo due righe;
+  data separata;
+  piattaforme e target in indicatori leggibili;
+  pulsanti Gestisci annunci e Segna venduto su una riga dedicata.
+- La pagina mostra anche il numero di risultati della ricerca.
+
+APERTURA DIRETTA DEI MODULI
+- eBay: https://www.ebay.it/sl/prelist
+- Facebook Marketplace: https://www.facebook.com/marketplace/create/item
+  aperto nel Safari normale per mantenere la sessione web.
+- Depop: https://www.depop.com/products/create/
+- Wallapop e Vestiaire mantengono la configurazione già approvata.
+
+TEST DA FARE
+1. Apri Pubblicati e controlla che la pagina occupi tutta la larghezza.
+2. Apri un articolo → Pubblicazione.
+3. Prova Apri su eBay, Facebook e Depop.
+4. Comunica per ciascuna piattaforma dove arriva effettivamente su iPhone.
+
+Sono stati superati 51 test automatici.
