@@ -1,13 +1,4 @@
-# MXLAB Reseller Hub v3.5.2
-
-## Novità v3.5.2
-
-- Depop usa sempre il prezzo con boost; la variante senza boost non viene più mostrata.
-- Nella pubblicazione il prezzo resta visibile ma non ha più un pulsante di copia.
-- I pulsanti di titolo e descrizione mostrano chiaramente `✓ Copiato` dopo il tocco.
-- Il pulsante `Apri` non sovrascrive più gli appunti.
-- Le descrizioni mantengono gli a capo e le righe vuote preparate nello Studio annuncio.
-
+# MXLAB Reseller Hub v3.5.1
 
 PWA locale per iPhone che segue il processo operativo MXLAB dalla fotografia già pronta fino alla vendita.
 
@@ -79,3 +70,12 @@ npm test
 ## Pubblicazione
 
 Caricare i file nella radice del repository GitHub Pages e pubblicare dalla branch `main`, cartella `/ (root)`.
+
+
+## v3.5.3
+
+- Pagina Pubblicati ridisegnata e forzata a tutta larghezza.
+- Schede online più leggibili con titolo su due righe, dati essenziali e azioni separate.
+- eBay apre il pre-listing ufficiale.
+- Facebook Marketplace apre in Safari il modulo diretto per un articolo.
+- Depop apre il modulo diretto `products/create`.

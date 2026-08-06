@@ -126,9 +126,15 @@ test('considera pronta la scheda con cinque foto e dati completi', () => {
   assert.equal(incomplete.ready, false);
 });
 
-test('configura l’apertura persistente di Wallapop e il link universale di Vestiaire', () => {
-  assert.equal(getPlatform('facebook').appUrl, 'fb://marketplace/create');
+test('apre direttamente i moduli di vendita e conserva le sessioni web necessarie', () => {
+  assert.equal(getPlatform('ebay').launchMode, 'universal');
+  assert.equal(getPlatform('ebay').webUrl, 'https://www.ebay.it/sl/prelist');
+  assert.equal(getPlatform('facebook').launchMode, 'safari');
+  assert.equal(getPlatform('facebook').appUrl, undefined);
   assert.equal(getPlatform('facebook').webUrl, 'https://www.facebook.com/marketplace/create/item');
+  assert.match(getPlatform('facebook').safariUrl, /^x-safari-https:\/\/www\.facebook\.com\/marketplace\/create\/item$/);
+  assert.equal(getPlatform('depop').launchMode, 'universal');
+  assert.equal(getPlatform('depop').webUrl, 'https://www.depop.com/products/create/');
   assert.equal(getPlatform('wallapop').launchMode, 'safari');
   assert.match(getPlatform('wallapop').safariUrl, /^x-safari-https:\/\/it\.wallapop\.com\/app\/catalog\/upload$/);
   assert.equal(getPlatform('vestiaire').launchMode, 'universal');

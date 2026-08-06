@@ -9,7 +9,9 @@ const PLATFORM_DEFINITIONS = [
   },
   {
     id: 'ebay', label: 'eBay', badge: 'eB', currency: 'EUR',
-    webUrl: 'https://www.ebay.it/sl/sell',
+    universalUrl: 'https://www.ebay.it/sl/prelist',
+    webUrl: 'https://www.ebay.it/sl/prelist',
+    launchMode: 'universal',
   },
   {
     id: 'wallapop', label: 'Wallapop', badge: 'W', currency: 'EUR',
@@ -25,8 +27,9 @@ const PLATFORM_DEFINITIONS = [
   },
   {
     id: 'facebook', label: 'Facebook Marketplace', badge: 'FB', currency: 'EUR',
-    appUrl: 'fb://marketplace/create',
+    safariUrl: 'x-safari-https://www.facebook.com/marketplace/create/item',
     webUrl: 'https://www.facebook.com/marketplace/create/item',
+    launchMode: 'safari',
   },
   {
     id: 'vestiaire', label: 'Vestiaire Collective', badge: 'VC', currency: 'EUR',
@@ -39,7 +42,9 @@ const PLATFORM_DEFINITIONS = [
   },
   {
     id: 'depop', label: 'Depop', badge: 'D', currency: 'EUR',
-    webUrl: 'https://www.depop.com/sell/',
+    universalUrl: 'https://www.depop.com/products/create/',
+    webUrl: 'https://www.depop.com/products/create/',
+    launchMode: 'universal',
   },
   {
     id: 'grailed', label: 'Grailed', badge: 'G', currency: 'USD',
