@@ -1,4 +1,4 @@
-# MXLAB Reseller Hub v3.5.5
+# MXLAB Reseller Hub v3.5.6
 
 PWA locale per iPhone che segue il processo operativo MXLAB dalle foto già pronte fino alla vendita.
 
@@ -49,3 +49,8 @@ npm test
 ## Pubblicazione
 
 Caricare i file nella radice del repository GitHub Pages e pubblicare dalla branch `main`, cartella `/ (root)`.
+
+
+## Recupero cache iPhone
+
+Aprire `update.html` una sola volta per rimuovere esclusivamente le vecchie cache della PWA. La procedura non cancella localStorage o IndexedDB, quindi conserva articoli, impostazioni e fotografie.

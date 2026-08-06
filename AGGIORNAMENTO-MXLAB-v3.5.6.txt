@@ -1,0 +1,20 @@
+MXLAB Reseller Hub v3.5.6 — Recupero cache sicuro iPhone
+
+PROBLEMA RISOLTO
+La PWA poteva restare bloccata sulla v3.5.3 anche dopo il caricamento dei file più recenti su GitHub, continuando quindi a usare i vecchi collegamenti eBay, Facebook e Depop.
+
+COSA CAMBIA
+- Nuova pagina update.html per eliminare soltanto le cache MXLAB obsolete.
+- Articoli, vendite, impostazioni e fotografie in IndexedDB non vengono cancellati.
+- Service Worker network-first: quando la rete è disponibile controlla sempre i file più recenti.
+- Versione visibile in Dati: Hub v3.5.6.
+- Restano incluse le correzioni v3.5.5 per backup foto ed apertura piattaforme.
+
+PROCEDURA
+1. Carica nella radice del repository tutti i file contenuti nella patch v3.5.6, sovrascrivendo quelli esistenti.
+2. Attendi che il commit compaia su GitHub.
+3. Apri in Safari:
+   https://notmax04.github.io/mxlab-reseller-calculator/update.html
+4. La pagina elimina esclusivamente le vecchie cache e apre automaticamente MXLAB.
+5. Controlla in Dati che compaia Hub v3.5.6.
+6. Non eliminare l'icona dalla Home e non cancellare i dati dei siti web di Safari.
